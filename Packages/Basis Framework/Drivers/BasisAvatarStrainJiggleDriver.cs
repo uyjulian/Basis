@@ -75,7 +75,13 @@ namespace Basis.Scripts.Drivers
             Data.elasticitySoften = Strain.ElasticitySoften;
             Data.radiusMultiplier = Strain.RadiusMultiplier;
             Base.SetData(Data);
-            JiggleRig JiggleRig = new JiggleRig(Strain.RootTransform, Base, Strain.IgnoredTransforms, Strain.Colliders);
+            JiggleRig JiggleRig = new JiggleRig
+            {
+                rootTransform = Strain.RootTransform,
+                jiggleSettings = Base,
+                ignoredTransforms = Strain.IgnoredTransforms,
+                colliders = Strain.Colliders
+            };//Strain.RootTransform, Base, Strain.IgnoredTransforms, Strain.Colliders
             return JiggleRig;
         }
     }
