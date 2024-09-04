@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Collections;
 using UnityEngine;
 namespace JigglePhysics
@@ -19,7 +20,6 @@ namespace JigglePhysics
         [SerializeField]
         public JiggleSettingsData jiggleSettingsdata;
         public bool initialized;
-        public Transform GetRootTransform() => rootTransform;
         public int simulatedPointsCount;
         public bool NeedsCollisions => colliders.Length != 0;
         public JiggleBone[] Bones;
@@ -47,10 +47,23 @@ namespace JigglePhysics
             {
                 return;
             }
-            CreateSimulatedPoints(ref Bones, ignoredTransforms, rootTransform, -1,out List<Vector3> ComputedLocalPositions, out List<Quaternion> ComputedLocalRotations);
+            CreateSimulatedPoints();
             this.simulatedPointsCount = Bones.Length;
+
+            lastValidPoseBoneRotation = new NativeArray<Quaternion>(simulatedPointsCount, Allocator.Persistent);
+            lastValidPoseBoneLocalPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
+            boneRotationChangeCheck = new NativeArray<Quaternion>(simulatedPointsCount, Allocator.Persistent);
+
+            currentFixedAnimatedBonePosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
+            bonePositionChangeCheck = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
+            workingPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
+            preTeleportPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
+            extrapolatedPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
+
             for (int SimulatedIndex = 0; SimulatedIndex < simulatedPointsCount; SimulatedIndex++)
             {
+                lastValidPoseBoneRotation[SimulatedIndex] = Bones[SimulatedIndex].InitalizeLocalRotation;
+                lastValidPoseBoneLocalPosition[SimulatedIndex] = Bones[SimulatedIndex].InitalizeLocalPosition;
                 int distanceToRoot = 0;
                 JiggleBone test = Bones[SimulatedIndex];
                 while (test.JiggleParent != -1)
@@ -71,24 +84,6 @@ namespace JigglePhysics
                 float frac = (float)distanceToRoot / max;
                 Bones[SimulatedIndex].normalizedIndex = frac;
             }
-
-
-            lastValidPoseBoneRotation = new NativeArray<Quaternion>(simulatedPointsCount, Allocator.Persistent);
-            lastValidPoseBoneLocalPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
-
-            Debug.Log("Count was ComputedLocalRotations " + ComputedLocalRotations.Count + "with lastValidPoseBoneRotation Length " + lastValidPoseBoneRotation.Length);
-            Debug.Log("Count was ComputedLocalPositions " + ComputedLocalPositions.Count + "with lastValidPoseBoneLocalPosition Length " + lastValidPoseBoneLocalPosition.Length);
-
-            lastValidPoseBoneRotation.CopyFrom(ComputedLocalRotations.ToArray());
-            lastValidPoseBoneLocalPosition.CopyFrom(ComputedLocalPositions.ToArray());
-
-            boneRotationChangeCheck = new NativeArray<Quaternion>(simulatedPointsCount, Allocator.Persistent);
-
-            currentFixedAnimatedBonePosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
-            bonePositionChangeCheck = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
-            workingPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
-            preTeleportPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
-            extrapolatedPosition = new NativeArray<Vector3>(simulatedPointsCount, Allocator.Persistent);
             initialized = true;
         }
         public void Update(Vector3 wind, double TimeAsDouble, float fixedDeltaTime, Vector3 Gravity)
@@ -289,8 +284,13 @@ namespace JigglePhysics
         }
         public Vector3 GetProjectedPosition(JiggleBone JiggleBone)
         {
-            JiggleBone Parent = Bones[JiggleBone.JiggleParent];
-            return Parent.transform.TransformPoint(GetParentTransform(JiggleBone).InverseTransformPoint(Parent.transform.position) * JiggleBone.projectionAmount);
+            if (JiggleBone.JiggleParent != -1)
+            {
+                Debug.Log("Counts are " + Bones.Length + " requesting " + JiggleBone.JiggleParent);
+                JiggleBone Parent = Bones[JiggleBone.JiggleParent];
+                return Parent.transform.TransformPoint(GetParentTransform(JiggleBone).InverseTransformPoint(Parent.transform.position) * JiggleBone.projectionAmount);
+            }
+            else return Vector3.zero;
         }
         public Vector3 GetTransformPosition(JiggleBone JiggleBone)
         {
@@ -393,67 +393,56 @@ namespace JigglePhysics
         {
             return extrapolatedPosition[JiggleBone];
         }
-        protected virtual void CreateSimulatedPoints(ref JiggleBone[] outputPoints, Transform[] ignoredTransforms, Transform currentTransform, int parentJiggleBone, out List<Vector3> ComputedLocalPositions, out List<Quaternion> ComputedLocalRotations)
+        protected virtual void CreateSimulatedPoints()
         {
-            ComputedLocalPositions = new List<Vector3>();
-            ComputedLocalRotations = new List<Quaternion>();
-            // Use a list to store the JiggleBones
-            List<JiggleBone> jiggleBoneList = new List<JiggleBone>(outputPoints ?? new JiggleBone[0]);
-
             // Call the internal recursive method
-            CreateSimulatedPointsInternal(ref jiggleBoneList, ref ComputedLocalPositions, ref ComputedLocalRotations, ignoredTransforms, currentTransform, parentJiggleBone);
-
-            // Convert the list back to an array and assign it to outputPoints
-            outputPoints = jiggleBoneList.ToArray();
+            CreateSimulatedPoints(rootTransform, -1);
+        }
+        public int NextIndex()
+        {
+            return Bones.Length;
         }
         // Recursive function to create simulated points using a list
-        void CreateSimulatedPointsInternal(ref List<JiggleBone> list, ref List<Vector3> ComputedLocalPositions, ref List<Quaternion> ComputedLocalRotations, Transform[] ignored, Transform current, int parent)
+        void CreateSimulatedPoints(Transform currentTransform, int parentJiggleBone)
         {
-            // Create a new JiggleBone and add it to the list
-            JiggleBone newJiggleBone = JiggleBone(ref list, ref ComputedLocalPositions, ref ComputedLocalRotations, current, parent);
-            list.Add(newJiggleBone);
-            // Check if the currentTransform has no children
-            if (current.childCount == 0)
+            Bones = new JiggleBone[] { };
+            JiggleBone newJiggleBone = JiggleBoneCreate(NextIndex(), currentTransform, parentJiggleBone);
+            Bones = AddToArray(Bones, newJiggleBone);
+            // Create an extra purely virtual point if we have no children.
+            if (currentTransform.childCount == 0)
             {
-                // Handle the case where newJiggleBone has no parent
                 if (newJiggleBone.JiggleParent == -1)
                 {
-                    if (newJiggleBone.transform == null || newJiggleBone.transform.parent == null)
+                    if (newJiggleBone.transform.parent == null)
                     {
                         throw new UnityException("Can't have a singular jiggle bone with no parents. That doesn't even make sense!");
                     }
                     else
                     {
-                        // Add an extra virtual JiggleBone
-                        list.Add(JiggleBone(ref list, ref ComputedLocalPositions, ref ComputedLocalRotations, null, list.IndexOf(newJiggleBone)));
+                        JiggleBone NewJiggle = JiggleBoneCreate(NextIndex(), null, newJiggleBone.boneIndex);//null, newJiggleBone
+                        Bones = AddToArray(Bones, NewJiggle);
                         return;
                     }
                 }
-                // Add another virtual JiggleBone
-                list.Add(JiggleBone(ref list, ref ComputedLocalPositions, ref ComputedLocalRotations, null, list.IndexOf(newJiggleBone)));
+                JiggleBone JiggleBone = JiggleBoneCreate(NextIndex(), null, newJiggleBone.boneIndex);//null, newJiggleBone
+                Bones = AddToArray(Bones, JiggleBone);
                 return;
             }
-
-            // Iterate through child transforms
-            int childCount = current.childCount;
-            for (int ChildIndex = 0; ChildIndex < childCount; ChildIndex++)
+            for (int ChildIndex = 0; ChildIndex < currentTransform.childCount; ChildIndex++)
             {
-                Transform child = current.GetChild(ChildIndex);
-                // Check if the child is in the ignoredTransforms array
-                if (Array.Exists(ignored, t => t == child))
+                Transform Child = currentTransform.GetChild(ChildIndex);
+                if (ignoredTransforms.Contains(Child))
                 {
                     continue;
                 }
-                // Recursively create simulated points for child transforms
-                CreateSimulatedPointsInternal(ref list, ref ComputedLocalPositions, ref ComputedLocalRotations, ignored, child, list.IndexOf(newJiggleBone));
+                CreateSimulatedPoints(Child, newJiggleBone.boneIndex);
             }
         }
-        public JiggleBone JiggleBone(ref List<JiggleBone> JiggleBones, ref List<Vector3> ComputedLocalPositions, ref List<Quaternion> ComputedLocalRotations, Transform transform, int parent, float projectionAmount = 1f)
+        public JiggleBone JiggleBoneCreate(int MyIndex, Transform transform, int parent, float projectionAmount = 1f)
         {
-            int WhatMyIndexWillBe = JiggleBones.Count;
-
             JiggleBone JiggleBone = new JiggleBone
             {
+                boneIndex = MyIndex,
                 transform = transform,
                 JiggleParent = parent,
                 projectionAmount = projectionAmount
@@ -462,11 +451,8 @@ namespace JigglePhysics
             Vector3 position;
             if (transform != null)
             {
-                transform.GetLocalPositionAndRotation(out Vector3 Position, out Quaternion Rotation);
-
-                ComputedLocalPositions.Add(Position);
-                ComputedLocalRotations.Add(Rotation);
-
+                JiggleBone.InitalizeLocalRotation = transform.localRotation;
+                JiggleBone.InitalizeLocalPosition = transform.localPosition;
                 position = transform.position;
             }
             else
@@ -474,25 +460,44 @@ namespace JigglePhysics
                 position = GetProjectedPosition(JiggleBone);
             }
 
-            double timeAsDouble = Time.timeAsDouble;
-            JiggleBone.targetAnimatedBoneSignal = new PositionSignal(position, timeAsDouble);
-            JiggleBone.particleSignal = new PositionSignal(position, timeAsDouble);
+            JiggleBone.targetAnimatedBoneSignal = new PositionSignal(position, Time.timeAsDouble);
+            JiggleBone.particleSignal = new PositionSignal(position, Time.timeAsDouble);
 
             JiggleBone.hasTransform = transform != null;
-
             if (parent == -1)
             {
-                JiggleBones.Add(JiggleBone);
-                Bones = JiggleBones.ToArray();
                 return JiggleBone;
             }
-
-            JiggleBone parentBone = JiggleBones[JiggleBone.JiggleParent];
-            parentBone.child = WhatMyIndexWillBe;
-            JiggleBones.Add(JiggleBone);
-            Bones = JiggleBones.ToArray();
-
+            if (JiggleBone.JiggleParent != -1)
+            {
+              int ParentIndex =  JiggleBone.JiggleParent;
+                Debug.Log("Parent Index Was " + ParentIndex);
+                if (ParentIndex == MyIndex)
+                {
+                    JiggleBone.child = MyIndex;
+                }
+                else
+                {
+                    Bones[ParentIndex].child = MyIndex;
+                }
+            }
             return JiggleBone;
+        }
+        public static JiggleBone[] AddToArray(JiggleBone[] originalArray, JiggleBone newItem)
+        {
+            // Create a new array with one extra slot
+            JiggleBone[] newArray = new JiggleBone[originalArray.Length + 1];
+
+            // Copy the original array into the new array
+            for (int i = 0; i < originalArray.Length; i++)
+            {
+                newArray[i] = originalArray[i];
+            }
+
+            // Add the new item to the end of the new array
+            newArray[originalArray.Length] = newItem;
+
+            return newArray;
         }
     }
 }

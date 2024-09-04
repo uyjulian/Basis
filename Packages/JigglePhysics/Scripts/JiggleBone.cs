@@ -6,6 +6,7 @@ namespace JigglePhysics
     {
         public Transform transform;
 
+        public int boneIndex = -1;
         public int JiggleParent = -1;
         public int child = -1;
 
@@ -17,5 +18,8 @@ namespace JigglePhysics
 
         public PositionSignal targetAnimatedBoneSignal;
         public PositionSignal particleSignal;
+
+        public Vector3 InitalizeLocalPosition;
+        public Quaternion InitalizeLocalRotation;
     }
 }
