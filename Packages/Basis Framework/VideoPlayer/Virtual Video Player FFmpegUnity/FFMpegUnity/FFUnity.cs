@@ -234,7 +234,7 @@ namespace FFmpeg.Unity
                 StartDecodeThread();  // Assuming you have this method to restart decoding
                 return;
             }
-            if (!_paused)
+            if (_paused)
             {
                 if (_videoWatch.IsRunning)
                 {
@@ -384,17 +384,13 @@ namespace FFmpeg.Unity
             {
                 // Initialize state variables
                 double time = default;
-                bool decodeV = ShouldDecodeVideo();
-                bool decodeA = AudioProcessing._audioDecoder != null && AudioProcessing.ShouldDecodeAudio(this);
-
                 // Process video frames
-                if (decodeV && TryProcessVideoFrame(ref time))
+                if (ShouldDecodeVideo() && TryProcessVideoFrame(ref time))
                 {
                     continue;
                 }
-
                 // Process audio frames
-                if (decodeA && AudioProcessing.TryProcessAudioFrame(ref time, this))
+                if (AudioProcessing._audioDecoder != null && AudioProcessing.ShouldDecodeAudio(this) && AudioProcessing.TryProcessAudioFrame(ref time, this))
                 {
                     continue;
                 }
