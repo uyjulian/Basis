@@ -21,7 +21,7 @@ namespace FFmpeg.Unity
         public int _audioBufferSize = 128;
 
         // Circular buffer for each channel's audio stream
-        public List<CircularAudioBuffer> _audioStreams;
+        public List<CircularAudioBuffer> _audioStreams = new List<CircularAudioBuffer>();
 
         public MemoryStream _audioMemStream;
         public Mutex _audioLocker = new Mutex();
@@ -68,6 +68,13 @@ namespace FFmpeg.Unity
 
         public void InitAudio(string name)
         {
+
+            if(_streamAudioCtx == null)
+            {
+                Debug.LogError("_streamAudioCtx was null!");
+                return;
+            }
+
             _audioFrames = new AVFrame[_audioBufferCount];
             _audioMemStream = new MemoryStream();
             _audioStreams = new List<CircularAudioBuffer>();
@@ -115,7 +122,7 @@ namespace FFmpeg.Unity
             if (backBuffer2 == null || backBuffer2.Length != size)
             {
                 backBuffer2 = new byte[size];
-                backBuffer3 = new float[size / sizeof(float)];
+                backBuffer3 = new float[size / 4];
             }
             for (uint ch = 0; ch < _audioDecoder.Channels; ch++)
             {
@@ -171,7 +178,6 @@ namespace FFmpeg.Unity
                 _audioWriteIndex++;
                 return true;
             }
-
             return false;
         }
     }

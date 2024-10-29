@@ -44,7 +44,6 @@ namespace FFmpeg.Unity
         private TexturePool _texturePool;
         private FFTexData _lastTexData;
         private MaterialPropertyBlock propertyBlock;
-        public Action<Texture2D> OnDisplay = null;
 
         // Decoders and video processing
         [SerializeField] public AVHWDeviceType _hwType = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE;
@@ -425,8 +424,6 @@ namespace FFmpeg.Unity
             };
 
             unityTextureGeneration.UpdateTexture(_lastTexData);
-            // Invoke the display callback
-            OnDisplay?.Invoke(unityTextureGeneration.texture);
             return true;
         }
         private long FillVideoBuffers(double invFps, double fpsMs)
@@ -532,7 +529,7 @@ namespace FFmpeg.Unity
                 // Retrieve a frame from the pool
                 FFTexData frameData = _ffTexDataPool.Get(vFrame.width, vFrame.height);
                 // Clone the frame data
-                if (!FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, frameData.data, _videoDecoder.HWPixelFormat))
+                if (FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, frameData.data, _videoDecoder.HWPixelFormat))
                 {
                     _streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time);
                     _lastPts = time;

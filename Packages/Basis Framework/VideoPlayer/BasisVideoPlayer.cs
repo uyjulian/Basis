@@ -36,18 +36,25 @@ public class BasisVideoPlayer : MonoBehaviour
             RuntimeMaterial.mainTextureOffset = new Vector2(0, 1);
         }
 
-        ffmpeg.OnDisplay = OnDisplay;
+        ffmpeg.unityTextureGeneration.OnDisplay = OnDisplay;
         Url = DefaultUrl;
-        if (Field != null) Field.SetTextWithoutNotify(Url);
+        if (Field != null)
+        {
+            Field.SetTextWithoutNotify(Url);
+        }
         Play(Url);
     }
 
     // Display the video texture on a 3D mesh in Unity
-    private void OnDisplay(Texture2D tex)
+    private void OnDisplay()
     {
-        RuntimeMaterial.mainTexture = tex;
-        RuntimeMaterial.SetTexture(MaterialTextureId, tex);
-        if (RuntimeTexture != null) Graphics.Blit(RuntimeMaterial.mainTexture, RuntimeTexture, RuntimeMaterial.mainTextureScale, RuntimeMaterial.mainTextureOffset);
+        Texture texture = ffmpeg.unityTextureGeneration.texture;
+        RuntimeMaterial.mainTexture = texture;
+        RuntimeMaterial.SetTexture(MaterialTextureId, texture);
+        if (RuntimeTexture != null)
+        {
+            Graphics.Blit(RuntimeMaterial.mainTexture, RuntimeTexture, RuntimeMaterial.mainTextureScale, RuntimeMaterial.mainTextureOffset);
+        }
         mesh.UpdateGIMaterials();
     }
 
@@ -194,12 +201,6 @@ public class BasisVideoPlayer : MonoBehaviour
     public double GetPlaybackTime()
     {
         return ffmpeg.PlaybackTime;
-    }
-
-    // API method to retrieve the timer of the video
-    public double GetTimer()
-    {
-        return ffmpeg.timer;
     }
 
     // API method to check if the video is paused

@@ -32,6 +32,7 @@ public static class FFUnityFrameHelper
     public static Stopwatch SaveFrameByteStopWatch = new Stopwatch();
 
     public static Stopwatch SaveFrameMainStopWatch = new Stopwatch();
+    public static int LineCount = 4096 * 4096 * 6;
     public static Texture2D SaveFrame(AVFrame frame, int width, int height, AVPixelFormat format)
     {
         SaveFrameStopWatch.Start();
@@ -48,7 +49,7 @@ public static class FFUnityFrameHelper
         SaveFrameByteStopWatch.Start();
         if (line == null)
         {
-            line = new byte[4096 * 4096 * 6];
+            line = new byte[LineCount];
         }
 
         if (frame.data[0] == null || frame.format == -1 || texture == null)
@@ -69,7 +70,7 @@ public static class FFUnityFrameHelper
     {
         if (line == null)
         {
-            line = new byte[4096 * 4096 * 6];
+            line = new byte[LineCount];
         }
         if (frame.data[0] == null || frame.format == -1)
         {

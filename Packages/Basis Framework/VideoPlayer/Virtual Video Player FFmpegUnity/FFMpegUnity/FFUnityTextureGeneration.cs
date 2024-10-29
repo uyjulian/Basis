@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
 namespace FFmpeg.Unity
 {
     [System.Serializable]
@@ -14,6 +15,7 @@ namespace FFmpeg.Unity
         public bool hasMipChain = false;
         public int CachedlastWidth;
         public int CachedlastHeight;
+        public Action OnDisplay = null;
         public void InitializeTexture()
         {
             InitializeTexture(PresumedInitalTextureSizeY, PresumedInitalTextureSizeX);
@@ -44,6 +46,8 @@ namespace FFmpeg.Unity
                 texture.LoadRawTextureData(texData.data);
                 // Apply the texture updates to GPU (false to not generate mipmaps for performance)
                 texture.Apply(updateMipmaps: false);
+                // Invoke the display callback
+                OnDisplay?.Invoke();
             }
         }
     }
