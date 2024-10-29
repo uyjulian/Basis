@@ -33,7 +33,8 @@ namespace FFmpeg.Unity
         public FFmpegCtx _streamAudioCtx;
         public AudioClip[] _audioClips; // One for each channel
         public AVFrame[] _audioFrames;
-
+        private byte[] backBuffer2;
+        private float[] backBuffer3;
         public void SeekAudio(double seek)
         {
             // Stop all audio output
@@ -41,9 +42,9 @@ namespace FFmpeg.Unity
 
             // Reset stream
             _audioMemStream.Position = 0;
-            foreach (var stream in _audioStreams)
+            for (int Index = 0; Index < _audioStreams.Count; Index++)
             {
-                stream.Clear();
+                _audioStreams[Index].Clear();
             }
 
             if (CanSeek)
@@ -98,8 +99,6 @@ namespace FFmpeg.Unity
                 UnityEngine.Debug.LogError($"AudioCallback error: {ex}");
             }
         }
-        private byte[] backBuffer2;
-        private float[] backBuffer3;
         public unsafe void UpdateAudio(int idx)
         {
             var audioFrame = _audioFrames[idx];
@@ -107,20 +106,19 @@ namespace FFmpeg.Unity
             {
                 return;
             }
-
+            int size = ffmpeg.av_samples_get_buffer_size(null, 1, audioFrame.nb_samples, _audioDecoder.SampleFormat, 1);
+            if (size == 0)
+            {
+                UnityEngine.Debug.LogError("audio buffer size is less than zero");
+                return;
+            }
+            if (backBuffer2 == null || backBuffer2.Length != size)
+            {
+                backBuffer2 = new byte[size];
+                backBuffer3 = new float[size / sizeof(float)];
+            }
             for (uint ch = 0; ch < _audioDecoder.Channels; ch++)
             {
-                int size = ffmpeg.av_samples_get_buffer_size(null, 1, audioFrame.nb_samples, _audioDecoder.SampleFormat, 1);
-                if (size == 0)
-                {
-                    UnityEngine.Debug.LogError("audio buffer size is less than zero");
-                    return;
-                }
-                if (backBuffer2 == null || backBuffer2.Length != size)
-                {
-                    backBuffer2 = new byte[size];
-                    backBuffer3 = new float[size / sizeof(float)];
-                }
                 Marshal.Copy((IntPtr)audioFrame.data[ch], backBuffer2, 0, size);
                 Buffer.BlockCopy(backBuffer2, 0, backBuffer3, 0, backBuffer2.Length);
                 _audioStreams[(int)ch].Write(backBuffer3);
@@ -131,7 +129,10 @@ namespace FFmpeg.Unity
         {
             if (_audioDecoder != null && _audioDecoder.CanDecode() && _streamAudioCtx.TryGetTime(_audioDecoder, out var time))
             {
-                if (Unity._elapsedOffset + _audioTimeBuffer < time) return false;
+                if (Unity._elapsedOffset + _audioTimeBuffer < time)
+                {
+                    return false;
+                }
 
                 if (Unity._elapsedOffset > time + _audioSkipBuffer && CanSeek)
                 {
@@ -154,13 +155,18 @@ namespace FFmpeg.Unity
             if (aud == 0)
             {
                 if (_streamAudioCtx.TryGetTime(_audioDecoder, aFrame, out time) && Unity._elapsedOffset > time + _audioSkipBuffer && CanSeek)
+                {
                     return false;
+                }
 
                 if (_streamAudioCtx.TryGetTime(_audioDecoder, aFrame, out time) && time != 0)
+                {
                     _lastAudioDecodeTime = time;
+                }
 
-                _audioFrames[_audioWriteIndex % _audioFrames.Length] = aFrame;
-                UpdateAudio(_audioWriteIndex % _audioFrames.Length);
+                int position = _audioWriteIndex % _audioFrames.Length;
+                _audioFrames[position] = aFrame;
+                UpdateAudio(position);
 
                 _audioWriteIndex++;
                 return true;

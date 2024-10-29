@@ -42,7 +42,7 @@ namespace FFmpeg.Unity
         private Queue<TexturePool.TexturePoolState> _videoTextures;
         private TexturePool.TexturePoolState _lastVideoTex;
         private TexturePool _texturePool;
-        private FFTexData? _lastTexData;
+        private FFTexData _lastTexData;
         private MaterialPropertyBlock propertyBlock;
         public Action<Texture2D> OnDisplay = null;
 
@@ -134,7 +134,6 @@ namespace FFmpeg.Unity
 
             // Reset video tracking variables
             _lastVideoTex = null;
-            _lastTexData = null;
             _videoWatch.Restart();
             ResetTimers();
             _timeOffset = -seek;
@@ -228,7 +227,6 @@ namespace FFmpeg.Unity
             _texturePool = new TexturePool(_videoBufferCount);
             _videoTextures = new Queue<TexturePool.TexturePoolState>(_videoBufferCount);
             _lastVideoTex = null;
-            _lastTexData = null;
             _videoFrames = new AVFrame[_videoBufferCount];
             _videoFrameClones = new Queue<FFTexData>(_videoBufferCount);
             // init decoders
@@ -420,19 +418,15 @@ namespace FFmpeg.Unity
         /// <returns></returns>
         private bool Present()
         {
-            if (!_lastTexData.HasValue)
-                return false; // Early exit if no texture data
 
             _lastVideoTex = new TexturePool.TexturePoolState()
             {
-                pts = _lastTexData.Value.time,
+                pts = _lastTexData.time,
             };
 
-            unityTextureGeneration.UpdateTexture(_lastTexData.Value);
+            unityTextureGeneration.UpdateTexture(_lastTexData);
             // Invoke the display callback
             OnDisplay?.Invoke(unityTextureGeneration.texture);
-
-            _lastTexData = null; // Clear after processing
             return true;
         }
         private long FillVideoBuffers(double invFps, double fpsMs)
@@ -480,9 +474,12 @@ namespace FFmpeg.Unity
                 }
 
                 // Check if the current video decoder can decode and is in sync
-                if (_videoDecoder.CanDecode() && _streamVideoCtx.TryGetTime(_videoDecoder, out var time))
+                if (_videoDecoder.CanDecode() && _streamVideoCtx.TryGetTime(_videoDecoder, out double time))
                 {
-                    if (_elapsedOffsetVideo + _videoTimeBuffer < time) return false;
+                    if (_elapsedOffsetVideo + _videoTimeBuffer < time)
+                    {
+                        return false;
+                    }
 
                     if (_elapsedOffsetVideo > time + _videoSkipBuffer && CanSeek)
                     {
@@ -509,10 +506,14 @@ namespace FFmpeg.Unity
             if (vid == 0)
             {
                 if (_streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time) && _elapsedOffsetVideo > time + _videoSkipBuffer && CanSeek)
+                {
                     return false;
+                }
 
                 if (_streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time) && time != 0)
+                {
                     _lastVideoDecodeTime = time;
+                }
 
                 // Store the video frame in the buffer
                 _videoFrames[_videoWriteIndex % _videoFrames.Length] = vFrame;
@@ -533,17 +534,16 @@ namespace FFmpeg.Unity
                 // Clone the frame data
                 if (!FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, frameData.data, _videoDecoder.HWPixelFormat))
                 {
-                    UnityEngine.Debug.LogError("Could not save frame");
-                    _videoWriteIndex--;
-                    _ffTexDataPool.Return(frameData); // Return it to the pool on failure
+                    _streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time);
+                    _lastPts = time;
+                    frameData.time = time;
+                    _videoFrameClones.Enqueue(frameData); // Enqueue the frame data for processing
                 }
                 else
                 {
-                    _streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time);
-                    _lastPts = time;
-
-                    frameData.time = time;
-                    _videoFrameClones.Enqueue(frameData); // Enqueue the frame data for processing
+                    UnityEngine.Debug.LogError("Could not save frame");
+                    _videoWriteIndex--;
+                    _ffTexDataPool.Return(frameData); // Return it to the pool on failure
                 }
                 _videoMutex.ReleaseMutex();
             }
