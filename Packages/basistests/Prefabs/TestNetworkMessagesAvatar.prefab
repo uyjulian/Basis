@@ -157,7 +157,18 @@ MonoBehaviour:
   IsOwnedLocally: 0
   Renders:
   - {fileID: 5332160820655396527}
-  JiggleStrains: []
+  JiggleStrains:
+  - GravityMultiplier: 0.1
+    Friction: 0.05
+    AngleElasticity: 0.6
+    Blend: 1
+    AirDrag: 0.01
+    LengthElasticity: 0.4
+    ElasticitySoften: 0.2
+    RadiusMultiplier: 0.01
+    RootTransform: {fileID: 0}
+    IgnoredTransforms: []
+    Colliders: []
   HasSendEvent: 0
 --- !u!95 &3394121841743186029
 Animator:

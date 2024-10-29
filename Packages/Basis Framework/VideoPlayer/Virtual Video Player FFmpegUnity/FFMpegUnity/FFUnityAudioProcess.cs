@@ -98,7 +98,8 @@ namespace FFmpeg.Unity
                 UnityEngine.Debug.LogError($"AudioCallback error: {ex}");
             }
         }
-
+        private byte[] backBuffer2;
+        private float[] backBuffer3;
         public unsafe void UpdateAudio(int idx)
         {
             var audioFrame = _audioFrames[idx];
@@ -110,13 +111,16 @@ namespace FFmpeg.Unity
             for (uint ch = 0; ch < _audioDecoder.Channels; ch++)
             {
                 int size = ffmpeg.av_samples_get_buffer_size(null, 1, audioFrame.nb_samples, _audioDecoder.SampleFormat, 1);
-                if (size < 0)
+                if (size == 0)
                 {
                     UnityEngine.Debug.LogError("audio buffer size is less than zero");
                     return;
                 }
-                byte[] backBuffer2 = new byte[size];
-                float[] backBuffer3 = new float[size / sizeof(float)];
+                if (backBuffer2 == null || backBuffer2.Length != size)
+                {
+                    backBuffer2 = new byte[size];
+                    backBuffer3 = new float[size / sizeof(float)];
+                }
                 Marshal.Copy((IntPtr)audioFrame.data[ch], backBuffer2, 0, size);
                 Buffer.BlockCopy(backBuffer2, 0, backBuffer3, 0, backBuffer2.Length);
                 _audioStreams[(int)ch].Write(backBuffer3);

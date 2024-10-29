@@ -1,0 +1,57 @@
+﻿using System.Collections.Concurrent;
+namespace FFmpeg.Unity
+{
+    public class FFTexDataPool
+    {
+        private readonly ConcurrentQueue<FFTexData> _pool = new ConcurrentQueue<FFTexData>();
+
+        private FFTexData CreateNewFFTexData(int FrameWidth, int FrameHeight)
+        {
+            return new FFTexData
+            {
+                data = new byte[FrameWidth * FrameHeight * 3], // Assuming 3 bytes per pixel (RGB)
+                height = FrameHeight,
+                width = FrameWidth,
+            };
+        }
+
+        public FFTexData Get(int FrameWidth, int FrameHeight)
+        {
+            if (_pool.TryDequeue(out FFTexData item))
+            {
+                int Length = FrameWidth * FrameHeight * 3;
+                if (item.data == null)
+                {
+                    item = new FFTexData
+                    {
+                        data = new byte[Length], // Assuming 3 bytes per pixel (RGB)
+                        height = FrameHeight,
+                        width = FrameWidth,
+                    };
+                }
+                else
+                {
+                    if (item.data.Length != Length)
+                    {
+                        item.data = new byte[Length];
+                        item.height = FrameHeight;
+                        item.width = FrameWidth;
+                    }
+                }
+                return item;
+            }
+            else
+            {
+                // Pool is empty, create a new instance
+                return CreateNewFFTexData(FrameWidth, FrameHeight);
+            }
+        }
+
+        public void Return(FFTexData item)
+        {
+            // Reset the reusable data object
+            item.time = 0;
+            _pool.Enqueue(item);
+        }
+    }
+}

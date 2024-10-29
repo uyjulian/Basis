@@ -64,13 +64,15 @@ namespace FFmpeg.Unity
         public int LastTotalSize;
         public int synchronizingmaxIterations = 128;
         Stopwatch FillVideoBuffersStopWatch = new Stopwatch();
-
+        public double VideoUpdate = 0.25d;
         // Unity texture generation
         [SerializeField] public FFUnityTextureGeneration unityTextureGeneration = new FFUnityTextureGeneration();
 
         // Audio processing
         [SerializeField] public FFUnityAudioProcess AudioProcessing = new FFUnityAudioProcess();
         public FFTexDataPool _ffTexDataPool;
+        public double FallbackFramerate = 30d;
+        public double targetFps;
         private void OnEnable()
         {
             _ffTexDataPool = new FFTexDataPool();
@@ -230,14 +232,10 @@ namespace FFmpeg.Unity
             _videoFrames = new AVFrame[_videoBufferCount];
             _videoFrameClones = new Queue<FFTexData>(_videoBufferCount);
             // init decoders
-#if  UNITY_EDITOR
             _videoMutex = new Mutex(false, "Video Mutex");
-#else
-_videoMutex = new Mutex(false); // Or another synchronization method
-#endif
             _videoDecoder = new VideoStreamDecoder(_streamVideoCtx, AVMediaType.AVMEDIA_TYPE_VIDEO, _hwType);
         }
-        private void Update()
+        private void LateUpdate()
         {
             if (!IsInitialized())
             {
@@ -361,13 +359,13 @@ _videoMutex = new Mutex(false); // Or another synchronization method
         /// <returns>True if the video display needs updating, false otherwise.</returns>
         private bool ShouldUpdateVideo()
         {
-            return Math.Abs(_elapsedOffsetVideo - (PlaybackTime + _videoOffset)) >= 0.25d || _lastVideoTex == null;
+            return Math.Abs(_elapsedOffsetVideo - (PlaybackTime + _videoOffset)) >= VideoUpdate || _lastVideoTex == null;
         }
         private void UpdateThread()
         {
             UnityEngine.Debug.Log("AV Thread started.");
 
-            double targetFps = GetVideoFps();
+            GetVideoFps();
             double frameTimeMs = GetFrameTimeMs(targetFps);
             double frameInterval = 1d / targetFps;
 
@@ -396,13 +394,12 @@ _videoMutex = new Mutex(false); // Or another synchronization method
         /// <summary>
         /// Gets the frame rate of the video, defaulting to 30fps if not available.
         /// </summary>
-        private double GetVideoFps()
+        private void GetVideoFps()
         {
-            if (!_streamVideoCtx.TryGetFps(_videoDecoder, out double fps))
+            if (_streamVideoCtx.TryGetFps(_videoDecoder, out targetFps))
             {
-                fps = 30d;
             }
-            return fps;
+            targetFps = FallbackFramerate;
         }
         /// <summary>
         /// Calculates the time per frame in milliseconds based on the FPS.
@@ -569,59 +566,6 @@ _videoMutex = new Mutex(false); // Or another synchronization method
 
             Profiler.EndSample();
             return true;
-        }
-        public class FFTexDataPool
-        {
-            private readonly ConcurrentQueue<FFTexData> _pool = new ConcurrentQueue<FFTexData>();
-
-            private FFTexData CreateNewFFTexData(int FrameWidth, int FrameHeight)
-            {
-                return new FFTexData
-                {
-                    data = new byte[FrameWidth * FrameHeight * 3], // Assuming 3 bytes per pixel (RGB)
-                     height = FrameHeight,
-                      width = FrameWidth,
-                };
-            }
-
-            public FFTexData Get(int FrameWidth,int FrameHeight)
-            {
-                if (_pool.TryDequeue(out FFTexData item))
-                {
-                    int Length = FrameWidth * FrameHeight * 3;
-                    if (item.data == null)
-                    {
-                        item = new FFTexData
-                        {
-                            data = new byte[Length], // Assuming 3 bytes per pixel (RGB)
-                            height = FrameHeight,
-                            width = FrameWidth,
-                        };
-                    }
-                    else
-                    {
-                        if (item.data.Length != Length)
-                        {
-                            item.data = new byte[Length];
-                            item.height = FrameHeight;
-                            item.width = FrameWidth;
-                        }
-                    }
-                    return item;
-                }
-                else
-                {
-                    // Pool is empty, create a new instance
-                    return CreateNewFFTexData(FrameWidth,FrameHeight);
-                }
-            }
-
-            public void Return(FFTexData item)
-            {
-                // Reset the reusable data object
-                item.time = 0;
-                _pool.Enqueue(item);
-            }
         }
     }
 }
