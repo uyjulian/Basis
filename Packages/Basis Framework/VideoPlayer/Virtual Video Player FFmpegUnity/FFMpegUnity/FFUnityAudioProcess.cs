@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Runtime.Remoting.Channels;
 using System.Threading;
 using FFmpeg.Unity.Helpers;
 using UnityEngine;
@@ -20,7 +21,6 @@ namespace FFmpeg.Unity
         public List<CircularAudioBuffer> _audioStreams = new List<CircularAudioBuffer>();
 
         public MemoryStream _audioMemStream;
-        public Mutex _audioLocker = new Mutex();
         public int _audioWriteIndex = 0;
         public bool _lastAudioRead = false;
         public int _audioMissCount = 0;
@@ -31,6 +31,8 @@ namespace FFmpeg.Unity
         public AVFrame[] _audioFrames;
         private byte[] backBuffer2;
         private float[] backBuffer3;
+        private bool CanSeek;
+        public int Channels;
         public void SeekAudio(double seek)
         {
             // Stop all audio output
@@ -50,7 +52,7 @@ namespace FFmpeg.Unity
 
             _audioDecoder?.Seek();
 
-            for (int channelIndex = 0; channelIndex < _audioClips.Length; channelIndex++)
+            for (int channelIndex = 0; channelIndex < Channels; channelIndex++)
             {
                 FFUnityAudioHelper.PlayAll(AudioOutput, channelIndex, _audioClips[channelIndex]);
             }
@@ -61,7 +63,6 @@ namespace FFmpeg.Unity
             _audioDecoder?.Dispose();
             _streamAudioCtx?.Dispose();
         }
-        private bool CanSeek;
         public void InitAudio(string name, bool CanSeek)
         {
             this.CanSeek = CanSeek;
@@ -74,12 +75,10 @@ namespace FFmpeg.Unity
             _audioFrames = new AVFrame[_audioBufferCount];
             _audioMemStream = new MemoryStream();
             _audioStreams = new List<CircularAudioBuffer>();
-
-            _audioLocker = new Mutex();
             _audioDecoder = new VideoStreamDecoder(_streamAudioCtx, AVMediaType.AVMEDIA_TYPE_AUDIO);
-
-            _audioClips = new AudioClip[_audioDecoder.Channels];
-            for (int channel = 0; channel < _audioDecoder.Channels; channel++)
+            Channels = _audioDecoder.Channels;
+            _audioClips = new AudioClip[Channels];
+            for (int channel = 0; channel < Channels; channel++)
             {
                 _audioStreams.Add(new CircularAudioBuffer(_audioDecoder.SampleRate));
                 var duplicate = channel;
@@ -149,11 +148,8 @@ namespace FFmpeg.Unity
 
         public bool TryProcessAudioFrame(ref double time, FFUnity Unity)
         {
-            int aud = -1;
-            AVFrame aFrame = default;
-
             _streamAudioCtx.NextFrame(out _);
-            aud = _audioDecoder.Decode(out aFrame);
+           var aud = _audioDecoder.Decode(out var aFrame);
 
             if (aud == 0)
             {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -6,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using FFmpeg.Unity.Helpers;
 using UnityEngine;
-using UnityEngine.Profiling;
 namespace FFmpeg.Unity
 {
     public class FFUnity : MonoBehaviour
@@ -49,8 +49,7 @@ namespace FFmpeg.Unity
         private FFmpegCtx _streamVideoCtx;
         private VideoStreamDecoder _videoDecoder;
         private VideoFrameConverter _videoConverter;
-        private Queue<FFTexData> _videoFrameClones;
-        private Mutex _videoMutex = new Mutex();
+        private ConcurrentQueue<FFTexData> _videoFrameClones;
         private Thread _decodeThread;
 
         // Video frame buffers
@@ -196,7 +195,7 @@ namespace FFmpeg.Unity
             unityTextureGeneration.InitializeTexture();
 
             InitVideo();
-            AudioProcessing.InitAudio(nameof(this.gameObject),CanSeek);
+            AudioProcessing.InitAudio(nameof(this.gameObject), CanSeek);
 
             UnityEngine.Debug.Log(nameof(PlayAsync));
             Seek(0d);
@@ -208,9 +207,7 @@ namespace FFmpeg.Unity
             _videoTextures = new Queue<TexturePool.TexturePoolState>(_videoBufferCount);
             _lastVideoTex = null;
             _videoFrames = new AVFrame[_videoBufferCount];
-            _videoFrameClones = new Queue<FFTexData>(_videoBufferCount);
-            // init decoders
-            _videoMutex = new Mutex(false, "Video Mutex");
+            _videoFrameClones = new ConcurrentQueue<FFTexData>();
             _videoDecoder = new VideoStreamDecoder(_streamVideoCtx, AVMediaType.AVMEDIA_TYPE_VIDEO, _hwType);
         }
         private void LateUpdate()
@@ -260,12 +257,12 @@ namespace FFmpeg.Unity
                 while (ShouldUpdateVideo() && iterations < synchronizingmaxIterations)
                 {
                     iterations++;
-                    if (_videoMutex.WaitOne(0))
+                    UpdateVideoFromClones();
+                    _lastVideoTex = new TexturePool.TexturePoolState()
                     {
-                        UpdateVideoFromClones();
-                        _videoMutex.ReleaseMutex();
-                    }
-                    Present();
+                        pts = _lastTexData.time,
+                    };
+                    unityTextureGeneration.UpdateTexture(_lastTexData);
                 }
             }
             unityTextureGeneration.DisplayFrame();
@@ -356,21 +353,6 @@ namespace FFmpeg.Unity
             _decodeThread.Name = $"AV Decode Thread {name}";
             _decodeThread.Start();
         }
-        /// <summary>
-        /// Generates an Image
-        /// </summary>
-        /// <returns></returns>
-        private bool Present()
-        {
-
-            _lastVideoTex = new TexturePool.TexturePoolState()
-            {
-                pts = _lastTexData.time,
-            };
-
-            unityTextureGeneration.UpdateTexture(_lastTexData);
-            return true;
-        }
         private long FillVideoBuffers(double invFps, double fpsMs)
         {
             if (!IsInitialized())
@@ -434,12 +416,9 @@ namespace FFmpeg.Unity
         /// </summary>
         private bool TryProcessVideoFrame(ref double time)
         {
-            int vid = -1;
-            AVFrame vFrame = default;
-
             // Attempt to decode the next video frame
             _streamVideoCtx.NextFrame(out _);
-            vid = _videoDecoder.Decode(out vFrame);
+           var vid = _videoDecoder.Decode(out var vFrame);
 
             if (vid == 0)
             {
@@ -465,44 +444,33 @@ namespace FFmpeg.Unity
         }
         private void EnqueueVideoFrame(AVFrame vFrame, double time)
         {
-            if (_videoMutex.WaitOne(1))
+            // Retrieve a frame from the pool
+            FFTexData frameData = _ffTexDataPool.Get(vFrame.width, vFrame.height);
+
+            // Clone the frame data
+            if (FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, frameData.data, _videoDecoder.HWPixelFormat))
             {
-                // Retrieve a frame from the pool
-                FFTexData frameData = _ffTexDataPool.Get(vFrame.width, vFrame.height);
-                // Clone the frame data
-                if (FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, frameData.data, _videoDecoder.HWPixelFormat))
-                {
-                    _streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time);
-                    _lastPts = time;
-                    frameData.time = time;
-                    _videoFrameClones.Enqueue(frameData); // Enqueue the frame data for processing
-                }
-                else
-                {
-                    UnityEngine.Debug.LogError("Could not save frame");
-                    _videoWriteIndex--;
-                    _ffTexDataPool.Return(frameData); // Return it to the pool on failure
-                }
-                _videoMutex.ReleaseMutex();
+                _streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time);
+                _lastPts = time;
+                frameData.time = time;
+                _videoFrameClones.Enqueue(frameData); // Enqueue the frame data for processing
+            }
+            else
+            {
+                UnityEngine.Debug.LogError("Could not save frame");
+                _videoWriteIndex--;
+                _ffTexDataPool.Return(frameData); // Return it to the pool on failure
             }
         }
-        private unsafe bool UpdateVideoFromClones()
+        private bool UpdateVideoFromClones()
         {
-            Profiler.BeginSample(nameof(UpdateVideoFromClones), this);
-            if (_videoFrameClones.Count == 0)
-            {
-                Profiler.EndSample();
-                return false;
-            }
-
             // Dequeue the frame data for updating the video
-            FFTexData videoFrame = _videoFrameClones.Dequeue();
-            _lastTexData = videoFrame;
-
-            // Once done, return it to the pool
-            _ffTexDataPool.Return(videoFrame);
-
-            Profiler.EndSample();
+            if (_videoFrameClones.TryDequeue(out FFTexData videoFrame))
+            {
+                _lastTexData = videoFrame;
+                // Once done, return it to the pool
+                _ffTexDataPool.Return(videoFrame);
+            }
             return true;
         }
     }
