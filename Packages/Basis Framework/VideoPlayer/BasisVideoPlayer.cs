@@ -107,7 +107,7 @@ public class BasisVideoPlayer : MonoBehaviour
             {
                 Log("Playing local file: " + filePath);
                 await using FileStream videoStream = File.OpenRead(filePath);
-                await ffmpeg.PlayAsync(videoStream, videoStream);
+                 ffmpeg.PlayAsync(videoStream, videoStream);
             }
             else
             {
@@ -129,7 +129,7 @@ public class BasisVideoPlayer : MonoBehaviour
     public async Task PlayStreamAsync(string url)
     {
         Log("Playing stream from URL: " + url);
-        await ffmpeg.PlayAsync(url, url);
+         ffmpeg.PlayAsync(url, url);
     }
 
     public async void PlayFromWeb(string url)
@@ -147,7 +147,7 @@ public class BasisVideoPlayer : MonoBehaviour
             response.EnsureSuccessStatusCode();
 
             Stream videoStream = await response.Content.ReadAsStreamAsync();
-            await ffmpeg.PlayAsync(videoStream, videoStream);
+             ffmpeg.PlayAsync(videoStream, videoStream);
         }
         catch (Exception e)
         {

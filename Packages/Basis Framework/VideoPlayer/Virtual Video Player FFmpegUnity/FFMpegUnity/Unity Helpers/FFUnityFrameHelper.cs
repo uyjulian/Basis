@@ -33,59 +33,96 @@ public static class FFUnityFrameHelper
 
     public static Stopwatch SaveFrameMainStopWatch = new Stopwatch();
     public static int LineCount = 4096 * 4096 * 6;
-    public static Texture2D SaveFrame(AVFrame frame, int width, int height, AVPixelFormat format)
+    public static Texture2D SaveFrame(AVFrame frame, int width, int height,int ColorCount, AVPixelFormat format)
     {
         SaveFrameStopWatch.Start();
-        ///take a snapshot of time to do this and then submit it to the profiler 
-        var texture = new Texture2D(width, height, TextureFormat.RGB24, false);
-        SaveFrame(frame, width, height, texture, format);
-        SaveFrameStopWatch.Stop();
-        pSaveFrameTexture2DGeneration.Sample(SaveFrameStopWatch.Elapsed.TotalMilliseconds * 1000000);
+        Texture2D texture = null;
+
+        try
+        {
+            texture = new Texture2D(width, height, TextureFormat.RGB24, false);
+            SaveFrame(frame, width, height, ColorCount, texture, format);
+        }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError($"Error in SaveFrame: {ex.Message}");
+        }
+        finally
+        {
+            SaveFrameStopWatch.Stop();
+            pSaveFrameTexture2DGeneration.Sample(SaveFrameStopWatch.Elapsed.TotalMilliseconds * 1000000);
+        }
+
         return texture;
     }
 
-    public unsafe static bool SaveFrame(AVFrame frame, int width, int height, byte[] texture, AVPixelFormat format)
+    public unsafe static bool SaveFrame(AVFrame frame, int width, int height,int ColorCount, byte[] texture, AVPixelFormat format)
     {
         SaveFrameByteStopWatch.Start();
-        if (line == null)
-        {
-            line = new byte[LineCount];
-        }
 
-        if (frame.data[0] == null || frame.format == -1 || texture == null)
+        try
         {
+            if (line == null)
+            {
+                line = new byte[LineCount];
+            }
+
+            if (frame.data[0] == null || frame.format == -1 || texture == null)
+            {
+                UnityEngine.Debug.LogError("Invalid frame data or texture.");
+                return false;
+            }
+            int LineSize = width * height * ColorCount;
+            using var converter = new VideoFrameConverter(new System.Drawing.Size(frame.width, frame.height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
+            var convFrame = converter.Convert(frame);
+            Marshal.Copy((IntPtr)convFrame.data[0], line, 0, LineSize);
+            Array.Copy(line, 0, texture, 0, LineSize);
+        }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError($"Error in SaveFrame(byte[]): {ex.Message}");
             return false;
         }
+        finally
+        {
+            SaveFrameByteStopWatch.Stop();
+            pSaveFrameByteArray.Sample(SaveFrameByteStopWatch.Elapsed.TotalMilliseconds * 1000000);
+        }
 
-        using var converter = new VideoFrameConverter(new System.Drawing.Size(frame.width, frame.height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
-        var convFrame = converter.Convert(frame);
-        Marshal.Copy((IntPtr)convFrame.data[0], line, 0, width * height * 3);
-        Array.Copy(line, 0, texture, 0, width * height * 3);
-        SaveFrameByteStopWatch.Stop();
-        pSaveFrameByteArray.Sample(SaveFrameByteStopWatch.Elapsed.TotalMilliseconds * 1000000);
         return true;
     }
 
-    public unsafe static void SaveFrame(AVFrame frame, int width, int height, Texture2D texture, AVPixelFormat format)
+    public unsafe static void SaveFrame(AVFrame frame, int width, int height,int ColorCount , Texture2D texture, AVPixelFormat format)
     {
         if (line == null)
         {
             line = new byte[LineCount];
         }
+
         if (frame.data[0] == null || frame.format == -1)
         {
+            UnityEngine.Debug.LogError("Invalid frame data.");
             return;
         }
 
-        using var converter = new VideoFrameConverter(new System.Drawing.Size(width, height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
-        var convFrame = converter.Convert(frame);
-        if (texture.width != width || texture.height != height)
+        try
         {
-            texture.Reinitialize(width, height);
-        }
+            int LineSize = width * height * ColorCount;
+            using var converter = new VideoFrameConverter(new System.Drawing.Size(width, height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
+            var convFrame = converter.Convert(frame);
 
-        Marshal.Copy((IntPtr)frame.data[0], line, 0, width * height * 3);
-        texture.LoadRawTextureData((IntPtr)frame.data[0], width * height * 3);
-        texture.Apply(false);
+            if (texture.width != width || texture.height != height)
+            {
+                texture.Reinitialize(width, height);
+            }
+
+            Marshal.Copy((IntPtr)frame.data[0], line, 0, LineSize);
+            texture.LoadRawTextureData((IntPtr)frame.data[0], LineSize);
+            texture.Apply(false);
+        }
+        catch (Exception ex)
+        {
+            UnityEngine.Debug.LogError($"Error in SaveFrame(Texture2D): {ex.Message}");
+        }
     }
 }

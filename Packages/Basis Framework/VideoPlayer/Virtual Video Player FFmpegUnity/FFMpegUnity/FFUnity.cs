@@ -63,14 +63,14 @@ namespace FFmpeg.Unity
         public double VideoCatchupMultiplier = 5;
         public int LastTotalSize;
         public int synchronizingmaxIterations = 16;
-        Stopwatch FillVideoBuffersStopWatch = new Stopwatch();
         public double VideoUpdate = 0.25d;
+        public int ColorCount = 3;
         // Unity texture generation
         [SerializeField]
         public FFUnityTextureGeneration unityTextureGeneration = new FFUnityTextureGeneration();
 
         // Audio processing
-        [SerializeField] 
+        [SerializeField]
         public FFUnityAudioProcess AudioProcessing = new FFUnityAudioProcess();
         public FFTexDataPool _ffTexDataPool;
         public double FallbackFramerate = 30d;
@@ -95,7 +95,8 @@ namespace FFmpeg.Unity
             _paused = true;
             try
             {
-                _decodeThread?.Join();
+                UnityEngine.Debug.Log("Joining Video Threads");
+               _decodeThread?.Join();
             }
             catch (ThreadInterruptedException ex)
             {
@@ -154,24 +155,18 @@ namespace FFmpeg.Unity
             // Explicitly seek video decoder
             _videoDecoder.Seek();
         }
-        public async Task PlayAsync(Stream video, Stream audio)
+        public void PlayAsync(Stream video, Stream audio)
         {
-            await Task.Run(() =>
-            {
-                JoinThreads();
-            });
+            JoinThreads();
             DeInit();
             // Initialize video context
             _streamVideoCtx = new FFmpegCtx(video);
             AudioProcessing._streamAudioCtx = new FFmpegCtx(audio);
             Init();
         }
-        public async Task PlayAsync(string urlV, string urlA)
+        public void PlayAsync(string urlV, string urlA)
         {
-            await Task.Run(() =>
-            {
-                JoinThreads();
-            });
+            JoinThreads();
             DeInit();
             // Initialize video context
             _streamVideoCtx = new FFmpegCtx(urlV);
@@ -335,19 +330,21 @@ namespace FFmpeg.Unity
             _cancellationTokenSource = new CancellationTokenSource();
             var token = _cancellationTokenSource.Token;
 
-            GetVideoFps();
+            GetVideoFps();//this works correctly -LD
+
             double frameTimeMs = GetFrameTimeMs(targetFps);
             double frameInterval = 1d / targetFps;
 
             // Continuously update video frames while not paused
             while (!_paused)
             {
+                UnityEngine.Debug.Log("looping");
                 try
                 {
-                    long elapsedMs = FillVideoBuffers(frameInterval, frameTimeMs);
+                    double elapsedMs = FillVideoBuffers(frameInterval, frameTimeMs);
 
                     // Calculate the sleep duration, ensuring a minimum of 5ms sleep to avoid tight loops
-                    int sleepDurationMs = (int)Math.Max(5, frameTimeMs - elapsedMs);
+                    int sleepDurationMs = (int)Math.Max(1, frameTimeMs - elapsedMs);
                     Thread.Sleep(sleepDurationMs);
                 }
                 catch (ThreadInterruptedException ex)
@@ -396,8 +393,15 @@ namespace FFmpeg.Unity
         {
             if (_streamVideoCtx.TryGetFps(_videoDecoder, out targetFps))
             {
+                UnityEngine.Debug.Log("frame rate found is " + targetFps);
+                // Validate target FPS; set fallback if necessary
+                if (targetFps <= 0) targetFps = FallbackFramerate;
             }
-            targetFps = FallbackFramerate;
+            else
+            {
+                UnityEngine.Debug.LogError("frame rate not found falling back!");
+                targetFps = FallbackFramerate; // Ensure fallback is set if fetching fails
+            }
         }
         /// <summary>
         /// Calculates the time per frame in milliseconds based on the FPS.
@@ -414,35 +418,69 @@ namespace FFmpeg.Unity
                 {
                     Name = $"AV Decode Thread {name}"
                 };
+               UnityEngine.Debug.Log("StartDecodeThread");
                 _decodeThread.Start();
             }
         }
-        private long FillVideoBuffers(double invFps, double fpsMs)
+        /// <summary>
+        /// this code is faulty techanon! 
+        /// </summary>
+        /// <param name="invFps"></param>
+        /// <param name="fpsMs"></param>
+        /// <returns></returns>
+        private double FillVideoBuffers(double invFps, double fpsMs)
         {
             if (!IsInitialized())
             {
                 return 0;
             }
-            FillVideoBuffersStopWatch.Restart();
 
-            // Main loop that runs as long as we are within the target frame time
-            while (FillVideoBuffersStopWatch.ElapsedMilliseconds <= fpsMs)
+            // Initialize state variables
+            double time = default;
+            double elapsedMilliseconds = 0;
+
+            // Calculate the target frame interval in milliseconds
+            double targetFrameTimeMs = fpsMs;
+
+            // Record the start time using DateTime
+            DateTime startTime = DateTime.UtcNow;
+
+            // Main loop that runs while we are within the target frame time
+            while (elapsedMilliseconds < targetFrameTimeMs)
             {
-                // Initialize state variables
-                double time = default;
+                // Record the current time at the start of the loop
+                DateTime loopStartTime = DateTime.UtcNow;
+
                 // Process video frames
                 if (ShouldDecodeVideo() && TryProcessVideoFrame(ref time))
                 {
+                    // Update elapsed time for the loop
+                    elapsedMilliseconds = (DateTime.UtcNow - loopStartTime).TotalMilliseconds;
                     continue;
                 }
+                else
+                {
+                    UnityEngine.Debug.Log("Skipping Video");
+                }
+
                 // Process audio frames
                 if (AudioProcessing._audioDecoder != null && AudioProcessing.ShouldDecodeAudio(this) && AudioProcessing.TryProcessAudioFrame(ref time, this))
                 {
+                    // Update elapsed time for the loop
+                    elapsedMilliseconds = (DateTime.UtcNow - loopStartTime).TotalMilliseconds;
                     continue;
                 }
+                else
+                {
+                    UnityEngine.Debug.Log("Skipping Audio");
+                }
+
+                // Update elapsed time for the loop
+                elapsedMilliseconds = (DateTime.UtcNow - loopStartTime).TotalMilliseconds;
             }
 
-            return FillVideoBuffersStopWatch.ElapsedMilliseconds;
+            // Calculate the total elapsed time for this fill operation
+            return (DateTime.UtcNow - startTime).TotalMilliseconds;
         }
         /// <summary>
         /// Determines whether the video frame should be decoded.
@@ -455,6 +493,7 @@ namespace FFmpeg.Unity
                 if (Math.Abs(_elapsedOffsetVideo - PlaybackTime) > _videoTimeBuffer * VideoCatchupMultiplier && !CanSeek)
                 {
                     _timeOffset = -PlaybackTime;
+                    UnityEngine.Debug.LogWarning($"Time offset adjusted: {_timeOffset} due to sync issue.");
                 }
 
                 // Check if the current video decoder can decode and is in sync
@@ -462,6 +501,7 @@ namespace FFmpeg.Unity
                 {
                     if (_elapsedOffsetVideo + _videoTimeBuffer < time)
                     {
+                        UnityEngine.Debug.LogError($"Frame not decoded. Elapsed offset ({_elapsedOffsetVideo}) + buffer ({_videoTimeBuffer}) < current time ({time}).");
                         return false;
                     }
 
@@ -469,8 +509,13 @@ namespace FFmpeg.Unity
                     {
                         _streamVideoCtx.NextFrame(out _);
                         skippedFrames++;
+                        UnityEngine.Debug.LogWarning($"Frame skipped due to out-of-sync: elapsed offset ({_elapsedOffsetVideo}) > current time ({time}) + skip buffer ({_videoSkipBuffer}). Total skipped frames: {skippedFrames}");
                         return false;
                     }
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning("Video decoder cannot decode or time retrieval failed.");
                 }
             }
             return true;
@@ -482,18 +527,26 @@ namespace FFmpeg.Unity
         {
             // Attempt to decode the next video frame
             _streamVideoCtx.NextFrame(out _);
-           var vid = _videoDecoder.Decode(out var vFrame);
+            var vid = _videoDecoder.Decode(out var vFrame);
 
-            if (vid == 0)
+            if (vid == 0) // Successful decoding
             {
+                // Check if the frame is out of sync and needs to be skipped
                 if (_streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time) && _elapsedOffsetVideo > time + _videoSkipBuffer && CanSeek)
                 {
+                    UnityEngine.Debug.LogWarning($"Skipping frame. Elapsed offset: {_elapsedOffsetVideo}, Frame time: {time}, Skip buffer: {_videoSkipBuffer}.");
                     return false;
                 }
 
+                // Update the last decode time if time is valid
                 if (_streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time) && time != 0)
                 {
                     _lastVideoDecodeTime = time;
+                    UnityEngine.Debug.Log($"Video frame decoded. New last decode time: {_lastVideoDecodeTime}.");
+                }
+                else
+                {
+                    UnityEngine.Debug.LogWarning("Failed to retrieve valid time from the decoded frame.");
                 }
 
                 // Store the video frame in the buffer
@@ -501,7 +554,19 @@ namespace FFmpeg.Unity
 
                 EnqueueVideoFrame(vFrame, time);
                 _videoWriteIndex++;
+                UnityEngine.Debug.Log($"Video frame processed and stored. Write index: {_videoWriteIndex}.");
                 return true;
+            }
+            else
+            {
+                if (vid == 1)
+                {
+                    UnityEngine.Debug.LogError($"there is no data available right now, try again later... Decoding failed with error code: {vid}. Check decoder status or video stream.");
+                }
+                else
+                {
+                    UnityEngine.Debug.LogError($"Decoding failed with error code: {vid}. Check decoder status or video stream.");
+                }
             }
 
             return false;
@@ -512,7 +577,7 @@ namespace FFmpeg.Unity
             FFTexData frameData = _ffTexDataPool.Get(vFrame.width, vFrame.height);
 
             // Clone the frame data
-            if (FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, frameData.data, _videoDecoder.HWPixelFormat))
+            if (FFUnityFrameHelper.SaveFrame(vFrame, vFrame.width, vFrame.height, ColorCount, frameData.data, _videoDecoder.HWPixelFormat))
             {
                 _streamVideoCtx.TryGetTime(_videoDecoder, vFrame, out time);
                 _lastPts = time;
