@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+
 namespace FFmpeg.Unity
 {
     public class FFTexDataPool
@@ -52,6 +53,13 @@ namespace FFmpeg.Unity
             // Reset the reusable data object
             item.time = 0;
             _pool.Enqueue(item);
+        }
+
+        public void Clear()
+        {
+            // Clear the pool by creating a new instance of the ConcurrentQueue
+            // Optionally, you can do any necessary cleanup on the items if required
+            while (_pool.TryDequeue(out _)) { /* Intentionally empty */ }
         }
     }
 }

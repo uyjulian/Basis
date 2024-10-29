@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Runtime.Remoting.Channels;
-using System.Threading;
 using FFmpeg.Unity.Helpers;
 using UnityEngine;
 namespace FFmpeg.Unity
@@ -60,8 +58,10 @@ namespace FFmpeg.Unity
 
         public void DeInitAudio()
         {
+            UnityEngine.Debug.Log("disposing (_audioDecoder,_streamAudioCtx)");
             _audioDecoder?.Dispose();
             _streamAudioCtx?.Dispose();
+            UnityEngine.Debug.Log("Disposed (_audioDecoder,_streamAudioCtx)");
         }
         public void InitAudio(string name, bool CanSeek)
         {

@@ -25,7 +25,6 @@ namespace FFmpeg.Unity
         private Stopwatch _videoWatch;
         private double? _lastPts;
         private int? _lastPts2;
-        public double timer;
         public double PlaybackTime => _lastVideoTex?.pts ?? _elapsedOffset;
         public double _elapsedTotalSeconds => _videoWatch?.Elapsed.TotalSeconds ?? 0d;
         public double _elapsedOffsetVideo => _elapsedTotalSeconds + _videoOffset - _timeOffset;
@@ -34,8 +33,10 @@ namespace FFmpeg.Unity
 
         // Video buffer controls
         private int _videoBufferCount = 4;
-        [SerializeField] public double _videoTimeBuffer = 1d;
-        [SerializeField] public double _videoSkipBuffer = 0.25d;
+        [SerializeField]
+        public double _videoTimeBuffer = 1d;
+        [SerializeField]
+        public double _videoSkipBuffer = 0.25d;
 
         // Unity assets (video textures)
         private Queue<TexturePool.TexturePoolState> _videoTextures;
@@ -45,7 +46,8 @@ namespace FFmpeg.Unity
         private MaterialPropertyBlock propertyBlock;
 
         // Decoders and video processing
-        [SerializeField] public AVHWDeviceType _hwType = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE;
+        [SerializeField]
+        public AVHWDeviceType _hwType = AVHWDeviceType.AV_HWDEVICE_TYPE_NONE;
         private FFmpegCtx _streamVideoCtx;
         private VideoStreamDecoder _videoDecoder;
         private VideoFrameConverter _videoConverter;
@@ -56,17 +58,20 @@ namespace FFmpeg.Unity
         private AVFrame[] _videoFrames;
         private int _videoWriteIndex = 0;
         private double _lastVideoDecodeTime;
-        [NonSerialized] public int skippedFrames = 0;
+        [NonSerialized]
+        public int skippedFrames = 0;
         public double VideoCatchupMultiplier = 5;
         public int LastTotalSize;
         public int synchronizingmaxIterations = 16;
         Stopwatch FillVideoBuffersStopWatch = new Stopwatch();
         public double VideoUpdate = 0.25d;
         // Unity texture generation
-        [SerializeField] public FFUnityTextureGeneration unityTextureGeneration = new FFUnityTextureGeneration();
+        [SerializeField]
+        public FFUnityTextureGeneration unityTextureGeneration = new FFUnityTextureGeneration();
 
         // Audio processing
-        [SerializeField] public FFUnityAudioProcess AudioProcessing = new FFUnityAudioProcess();
+        [SerializeField] 
+        public FFUnityAudioProcess AudioProcessing = new FFUnityAudioProcess();
         public FFTexDataPool _ffTexDataPool;
         public double FallbackFramerate = 30d;
         public double targetFps;
@@ -88,7 +93,14 @@ namespace FFmpeg.Unity
         public void JoinThreads()
         {
             _paused = true;
-            _decodeThread?.Join();
+            try
+            {
+                _decodeThread?.Join();
+            }
+            catch (ThreadInterruptedException ex)
+            {
+                UnityEngine.Debug.LogError($"Thread interrupted: {ex.Message}");
+            }
         }
         public void DeInit()
         {
@@ -96,10 +108,15 @@ namespace FFmpeg.Unity
             {
                 _videoFrameClones.Clear();
             }
+
             _texturePool?.Dispose();
             _videoDecoder?.Dispose();
             _streamVideoCtx?.Dispose();
-            AudioProcessing.DeInitAudio();
+
+            if (AudioProcessing != null)
+            {
+                AudioProcessing.DeInitAudio();
+            }
         }
         public void Seek(double seek)
         {
@@ -182,7 +199,6 @@ namespace FFmpeg.Unity
             _offset = 0d;
             _prevTime = 0d;
             _timeOffset = 0d;
-            timer = 0d;
         }
         private void Init()
         {
@@ -256,13 +272,23 @@ namespace FFmpeg.Unity
                 iterations = 0;
                 while (ShouldUpdateVideo() && iterations < synchronizingmaxIterations)
                 {
-                    iterations++;
-                    UpdateVideoFromClones();
-                    _lastVideoTex = new TexturePool.TexturePoolState()
+                    if (_videoFrameClones.TryDequeue(out FFTexData videoFrame))
                     {
-                        pts = _lastTexData.time,
-                    };
-                    unityTextureGeneration.UpdateTexture(_lastTexData);
+                        _lastTexData = videoFrame;
+                        // Once done, return it to the pool
+                        _ffTexDataPool.Return(videoFrame);
+                        iterations++;
+                        _lastVideoTex = new TexturePool.TexturePoolState()
+                        {
+                            pts = _lastTexData.time,
+                        };
+
+                        unityTextureGeneration.UpdateTexture(_lastTexData);
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
             unityTextureGeneration.DisplayFrame();
@@ -300,9 +326,14 @@ namespace FFmpeg.Unity
         {
             return Math.Abs(_elapsedOffsetVideo - (PlaybackTime + _videoOffset)) >= VideoUpdate || _lastVideoTex == null;
         }
+        private CancellationTokenSource _cancellationTokenSource;
+
         private void UpdateThread()
         {
             UnityEngine.Debug.Log("AV Thread started.");
+
+            _cancellationTokenSource = new CancellationTokenSource();
+            var token = _cancellationTokenSource.Token;
 
             GetVideoFps();
             double frameTimeMs = GetFrameTimeMs(targetFps);
@@ -319,16 +350,44 @@ namespace FFmpeg.Unity
                     int sleepDurationMs = (int)Math.Max(5, frameTimeMs - elapsedMs);
                     Thread.Sleep(sleepDurationMs);
                 }
+                catch (ThreadInterruptedException ex)
+                {
+                    UnityEngine.Debug.LogWarning($"Thread interrupted: {ex.Message}");
+                    break; // Exit loop if thread is interrupted
+                }
                 catch (Exception e)
                 {
                     UnityEngine.Debug.LogError($"Error in video update thread: {e}");
+                    // Consider implementing a retry logic or a fail-safe here
+                    // Optionally you can break if the error is critical
+                    break;
                 }
             }
+
+            // Ensure proper cleanup before exiting the thread
+            CleanupAfterThread();
 
             // Log and finalize thread operation
             UnityEngine.Debug.Log("AV Thread stopped.");
             _videoWatch.Stop();
             _paused = true;
+        }
+        private void CleanupAfterThread()
+        {
+            // Perform any necessary cleanup here, such as releasing resources or memory
+            if (_videoFrames != null)
+            {
+                foreach (var frame in _videoFrames)
+                {
+                    // Release or dispose frame if necessary
+                }
+                _videoFrames = null; // Clear reference for garbage collection
+            }
+
+            // Example: if you're using a texture pool or any other resource, clear it here
+            _ffTexDataPool.Clear();
+
+            // Optionally reset any state variables if needed
         }
         /// <summary>
         /// Gets the frame rate of the video, defaulting to 30fps if not available.
@@ -349,9 +408,14 @@ namespace FFmpeg.Unity
         }
         private void StartDecodeThread()
         {
-            _decodeThread = new Thread(() => UpdateThread());
-            _decodeThread.Name = $"AV Decode Thread {name}";
-            _decodeThread.Start();
+            if (_decodeThread == null || !_decodeThread.IsAlive)
+            {
+                _decodeThread = new Thread(UpdateThread)
+                {
+                    Name = $"AV Decode Thread {name}"
+                };
+                _decodeThread.Start();
+            }
         }
         private long FillVideoBuffers(double invFps, double fpsMs)
         {
@@ -461,17 +525,6 @@ namespace FFmpeg.Unity
                 _videoWriteIndex--;
                 _ffTexDataPool.Return(frameData); // Return it to the pool on failure
             }
-        }
-        private bool UpdateVideoFromClones()
-        {
-            // Dequeue the frame data for updating the video
-            if (_videoFrameClones.TryDequeue(out FFTexData videoFrame))
-            {
-                _lastTexData = videoFrame;
-                // Once done, return it to the pool
-                _ffTexDataPool.Return(videoFrame);
-            }
-            return true;
         }
     }
 }
