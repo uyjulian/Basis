@@ -11,10 +11,6 @@ namespace FFmpeg.Unity
     public class FFUnityAudioProcess
     {
         public List<FFUnityAudio> AudioOutput = new List<FFUnityAudio>();
-        public bool IsPaused => _paused;
-        [SerializeField] public bool _paused;
-        private bool _wasPaused = false;
-        [SerializeField] public bool CanSeek = true;
         [SerializeField] public double _audioTimeBuffer = 1d;
         [SerializeField] public double _audioSkipBuffer = 0.25d;
         public int _audioBufferCount = 1;
@@ -65,11 +61,11 @@ namespace FFmpeg.Unity
             _audioDecoder?.Dispose();
             _streamAudioCtx?.Dispose();
         }
-
-        public void InitAudio(string name)
+        private bool CanSeek;
+        public void InitAudio(string name, bool CanSeek)
         {
-
-            if(_streamAudioCtx == null)
+            this.CanSeek = CanSeek;
+            if (_streamAudioCtx == null)
             {
                 Debug.LogError("_streamAudioCtx was null!");
                 return;

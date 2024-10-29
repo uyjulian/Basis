@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -61,7 +60,7 @@ namespace FFmpeg.Unity
         [NonSerialized] public int skippedFrames = 0;
         public double VideoCatchupMultiplier = 5;
         public int LastTotalSize;
-        public int synchronizingmaxIterations = 128;
+        public int synchronizingmaxIterations = 16;
         Stopwatch FillVideoBuffersStopWatch = new Stopwatch();
         public double VideoUpdate = 0.25d;
         // Unity texture generation
@@ -72,10 +71,11 @@ namespace FFmpeg.Unity
         public FFTexDataPool _ffTexDataPool;
         public double FallbackFramerate = 30d;
         public double targetFps;
+        private int iterations;
         private void OnEnable()
         {
             _ffTexDataPool = new FFTexDataPool();
-        _paused = false;
+            _paused = false;
         }
         private void OnDisable()
         {
@@ -93,31 +93,20 @@ namespace FFmpeg.Unity
         }
         public void DeInit()
         {
-            DeInitVideo();
-            AudioProcessing.DeInitAudio();
-        }
-        public void DeInitVideo()
-        {
+            if (_videoFrameClones != null)
+            {
+                _videoFrameClones.Clear();
+            }
             _texturePool?.Dispose();
             _videoDecoder?.Dispose();
             _streamVideoCtx?.Dispose();
+            AudioProcessing.DeInitAudio();
         }
         public void Seek(double seek)
         {
             UnityEngine.Debug.Log(nameof(Seek));
             _paused = true;
             seekTarget = seek;
-        }
-        // Full seek method divided into audio, video, and other parts
-        public void SeekInternal(double seek)
-        {
-            AudioProcessing.SeekAudio(seek);
-            SeekVideo(seek);
-            SeekOther(seek);
-
-            seekTarget = null;
-            _paused = false;
-            StartDecodeThread();  // Assuming you have this method to restart decoding
         }
 
         // Handles seeking in video
@@ -148,13 +137,6 @@ namespace FFmpeg.Unity
 
             // Explicitly seek video decoder
             _videoDecoder.Seek();
-        }
-
-        // Handles other tasks related to seeking (like resetting timers)
-        private void SeekOther(double seek)
-        {
-            // This method is used to reset timers or any non-audio, non-video states
-            ResetTimers(); // Assuming you have this method to reset the timing controls
         }
         public async Task PlayAsync(Stream video, Stream audio)
         {
@@ -214,8 +196,7 @@ namespace FFmpeg.Unity
             unityTextureGeneration.InitializeTexture();
 
             InitVideo();
-            AudioProcessing.CanSeek = CanSeek;
-            AudioProcessing.InitAudio(nameof(this.gameObject));
+            AudioProcessing.InitAudio(nameof(this.gameObject),CanSeek);
 
             UnityEngine.Debug.Log(nameof(PlayAsync));
             Seek(0d);
@@ -238,17 +219,56 @@ namespace FFmpeg.Unity
             {
                 return;
             }
-            HandleEndOfStream();
-            if (HandleSeeking())
+            if (CanSeek && IsStreamAtEnd() && !_paused)
             {
+                Pause();
+            }
+            if (seekTarget.HasValue && (_decodeThread == null || !_decodeThread.IsAlive))
+            {
+                AudioProcessing.SeekAudio(seekTarget.Value);
+                SeekVideo(seekTarget.Value);
+                ResetTimers();
+
+                seekTarget = null;
+                _paused = false;
+                StartDecodeThread();  // Assuming you have this method to restart decoding
                 return;
             }
-            UpdatePlaybackState();
             if (!_paused)
             {
-                StartOrResumeDecodeThread();
-                UpdateVideoDisplay();
+                if (_videoWatch.IsRunning)
+                {
+                    _videoWatch.Stop();
+                    FFUnityAudioHelper.PauseAll(AudioProcessing.AudioOutput);
+                }
             }
+            else
+            {
+                _offset = _elapsedOffset;
+
+                if (!_videoWatch.IsRunning)
+                {
+                    _videoWatch.Start();
+                    FFUnityAudioHelper.UnPauseAll(AudioProcessing.AudioOutput);
+                }
+                if (_decodeThread == null || !_decodeThread.IsAlive)
+                {
+                    StartDecodeThread();
+                }
+
+                iterations = 0;
+                while (ShouldUpdateVideo() && iterations < synchronizingmaxIterations)
+                {
+                    iterations++;
+                    if (_videoMutex.WaitOne(0))
+                    {
+                        UpdateVideoFromClones();
+                        _videoMutex.ReleaseMutex();
+                    }
+                    Present();
+                }
+            }
+            unityTextureGeneration.DisplayFrame();
             _prevTime = _offset;
             _wasPaused = _paused;
         }
@@ -264,16 +284,6 @@ namespace FFmpeg.Unity
             return true;
         }
         /// <summary>
-        /// Handles the end of the video stream and pauses if necessary.
-        /// </summary>
-        private void HandleEndOfStream()
-        {
-            if (CanSeek && IsStreamAtEnd() && !_paused)
-            {
-                Pause();
-            }
-        }
-        /// <summary>
         /// Determines whether the video and audio streams have reached their end.
         /// </summary>
         /// <returns>True if both streams are at the end, false otherwise.</returns>
@@ -284,71 +294,6 @@ namespace FFmpeg.Unity
                     (AudioProcessing._audioDecoder == null || AudioProcessing._streamAudioCtx.EndReached)
                     && _videoTextures.Count == 0
                     && (AudioProcessing._audioDecoder == null || AudioProcessing._audioStreams.Count == 0));
-        }
-        /// <summary>
-        /// Handles seeking by performing an internal seek if necessary.
-        /// </summary>
-        /// <returns>True if a seek is in progress and has been handled, false otherwise.</returns>
-        private bool HandleSeeking()
-        {
-            if (seekTarget.HasValue && (_decodeThread == null || !_decodeThread.IsAlive))
-            {
-                SeekInternal(seekTarget.Value);
-                return true;
-            }
-            return false;
-        }
-        /// <summary>
-        /// Updates the playback state, handling pause and resume logic.
-        /// </summary>
-        private void UpdatePlaybackState()
-        {
-            if (!_paused)
-            {
-                _offset = _elapsedOffset;
-
-                if (!_videoWatch.IsRunning)
-                {
-                    _videoWatch.Start();
-                    FFUnityAudioHelper.UnPauseAll(AudioProcessing.AudioOutput);
-                }
-            }
-            else
-            {
-                if (_videoWatch.IsRunning)
-                {
-                    _videoWatch.Stop();
-                    FFUnityAudioHelper.PauseAll(AudioProcessing.AudioOutput);
-                }
-            }
-        }
-        /// <summary>
-        /// Starts the decode thread if necessary.
-        /// </summary>
-        private void StartOrResumeDecodeThread()
-        {
-            if (_decodeThread == null || !_decodeThread.IsAlive)
-            {
-                StartDecodeThread();
-            }
-        }
-        /// <summary>
-        /// Updates the video display, synchronizing with the audio playback.
-        /// </summary>
-        private void UpdateVideoDisplay()
-        {
-            int iterations = 0;
-
-            while (ShouldUpdateVideo() && iterations < synchronizingmaxIterations)
-            {
-                iterations++;
-                if (_videoMutex.WaitOne(0))
-                {
-                    UpdateVideoFromClones();
-                    _videoMutex.ReleaseMutex();
-                }
-                Present();
-            }
         }
         /// <summary>
         /// Determines whether the video display should be updated.

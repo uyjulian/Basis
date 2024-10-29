@@ -16,6 +16,8 @@ namespace FFmpeg.Unity
         public int CachedlastWidth;
         public int CachedlastHeight;
         public Action OnDisplay = null;
+        public FFTexData LastFrameSubmitted;
+        public bool HasNew = false;
         public void InitializeTexture()
         {
             InitializeTexture(PresumedInitalTextureSizeY, PresumedInitalTextureSizeX);
@@ -31,19 +33,23 @@ namespace FFmpeg.Unity
             // Optionally mark it as non-readable to save memory and improve performance.
             texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
         }
-
         // Efficiently updates the texture with new data every frame
         public void UpdateTexture(FFTexData texData)
         {
-            if (ActivelyRenderering)
+            LastFrameSubmitted = texData;
+            HasNew = true;
+        }
+        public void DisplayFrame()
+        {
+            if (HasNew && ActivelyRenderering)
             {
-                if (CachedlastWidth != texData.width || CachedlastHeight != texData.height)
+                if (CachedlastWidth != LastFrameSubmitted.width || CachedlastHeight != LastFrameSubmitted.height)
                 {
-                    InitializeTexture(texData.width, texData.height);  // Reinitialize texture if dimensions changed
+                    InitializeTexture(LastFrameSubmitted.width, LastFrameSubmitted.height);  // Reinitialize texture if dimensions changed
                 }
-
+                HasNew = false;
                 // Load raw byte data (assumes RGB24 format)
-                texture.LoadRawTextureData(texData.data);
+                texture.LoadRawTextureData(LastFrameSubmitted.data);
                 // Apply the texture updates to GPU (false to not generate mipmaps for performance)
                 texture.Apply(updateMipmaps: false);
                 // Invoke the display callback
