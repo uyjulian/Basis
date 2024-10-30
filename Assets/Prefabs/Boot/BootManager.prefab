@@ -222,3 +222,4 @@ MonoBehaviour:
         AssetMode: Gameobject
         AssetToLoadName: LoadingAvatar
         AssetBundleCRC: 0
+  UseAddressables: 0
