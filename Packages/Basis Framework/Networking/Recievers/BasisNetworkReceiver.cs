@@ -43,7 +43,7 @@ namespace Basis.Scripts.Networking.Recievers
             ApplyPoseData(NetworkedPlayer.Player.Avatar.Animator, Output, ref HumanPose);
             PoseHandler.SetHumanPose(ref HumanPose);
 
-            RemotePlayer.RemoteBoneDriver.SimulateAndApply();
+            RemotePlayer.RemoteBoneDriver.SimulateOnRender();
             RemotePlayer.UpdateTransform(RemotePlayer.MouthControl.OutgoingWorldData.position, RemotePlayer.MouthControl.OutgoingWorldData.rotation);
         }
 

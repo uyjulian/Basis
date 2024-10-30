@@ -7,6 +7,7 @@ using Basis.Scripts.Device_Management;
 using Basis.Scripts.Device_Management.Devices;
 using Basis.Scripts.TransformBinders.BoneControl;
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Animations.Rigging;
@@ -126,38 +127,38 @@ namespace Basis.Scripts.Drivers
         {
             UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle<BasisFallBackBoneData> BasisFallBackBoneDataAsync = Addressables.LoadAssetAsync<BasisFallBackBoneData>(BoneData);
             BasisFallBackBoneData FBBD = BasisFallBackBoneDataAsync.WaitForCompletion();
-            for (int Index = 0; Index < driver.Controls.Length; Index++)
+            for (int Index = 0; Index < driver.TotalControlCount; Index++)
             {
-                BasisBoneControl Control = driver.Controls[Index];
-                if (driver.trackedRoles[Index] == BasisBoneTrackedRole.CenterEye)
+                BasisBoneControl Control = driver.AllBoneControls[Index];
+                if (driver.AllBoneRoles[Index] == BasisBoneTrackedRole.CenterEye)
                 {
                     GetWorldSpaceRotAndPos(() => Player.Avatar.AvatarEyePosition, out Control.TposeWorld.rotation, out Control.TposeWorld.position);
-                    SetInitialData(anim, Control, driver.trackedRoles[Index]);
+                    SetInitialData(anim, Control, driver.AllBoneRoles[Index]);
                 }
                 else
                 {
-                    if (driver.trackedRoles[Index] == BasisBoneTrackedRole.Mouth)
+                    if (driver.AllBoneRoles[Index] == BasisBoneTrackedRole.Mouth)
                     {
                         GetWorldSpaceRotAndPos(() => Player.Avatar.AvatarMouthPosition, out Control.TposeWorld.rotation, out Control.TposeWorld.position);
-                        SetInitialData(anim, Control, driver.trackedRoles[Index]);
+                        SetInitialData(anim, Control, driver.AllBoneRoles[Index]);
                     }
                     else
                     {
-                        if (FBBD.FindBone(out BasisFallBone FallBackBone, driver.trackedRoles[Index]))
+                        if (FBBD.FindBone(out BasisFallBone FallBackBone, driver.AllBoneRoles[Index]))
                         {
-                            if (TryConvertToHumanoidRole(driver.trackedRoles[Index], out HumanBodyBones HumanBones))
+                            if (TryConvertToHumanoidRole(driver.AllBoneRoles[Index], out HumanBodyBones HumanBones))
                             {
                                 GetBoneRotAndPos(driver, anim, HumanBones, FallBackBone.PositionPercentage, out Control.TposeWorld.rotation, out Control.TposeWorld.position, out bool UsedFallback);
-                                SetInitialData(anim, Control, driver.trackedRoles[Index]);
+                                SetInitialData(anim, Control, driver.AllBoneRoles[Index]);
                             }
                             else
                             {
-                                Debug.LogError("cant Convert to humanbodybone " + driver.trackedRoles[Index]);
+                                Debug.LogError("cant Convert to humanbodybone " + driver.AllBoneRoles[Index]);
                             }
                         }
                         else
                         {
-                            Debug.LogError("cant find Fallback Bone for " + driver.trackedRoles[Index]);
+                            Debug.LogError("cant find Fallback Bone for " + driver.AllBoneRoles[Index]);
                         }
                     }
                 }

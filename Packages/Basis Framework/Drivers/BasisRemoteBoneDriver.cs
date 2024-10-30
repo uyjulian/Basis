@@ -26,7 +26,7 @@ public class BasisRemoteBoneDriver : BaseBoneDriver
         }
         if (HasEvent == false)
         {
-            OnSimulate += CalculateHeadBoneData;
+            OnLateSimulate += CalculateHeadBoneData;
             HasEvent = true;
         }
     }
@@ -34,7 +34,7 @@ public class BasisRemoteBoneDriver : BaseBoneDriver
     {
         if (HasEvent)
         {
-            OnSimulate -= CalculateHeadBoneData;
+            OnLateSimulate -= CalculateHeadBoneData;
             HasEvent = false;
         }
     }

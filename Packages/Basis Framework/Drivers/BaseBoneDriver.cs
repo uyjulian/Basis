@@ -14,121 +14,169 @@ namespace Basis.Scripts.Drivers
     public abstract class BaseBoneDriver : MonoBehaviour
     {
         //figures out how to get the mouth bone and eye position
-        public int ControlsLength;
+        public int OnRenderControlsLength;
+        public int OnLateUpdateControlsLength;
         [SerializeField]
-        public BasisBoneControl[] Controls;
+        public BasisBoneControl[] LateUpdateControls;
+        public List<BasisBoneControl> AllBoneControls = new List<BasisBoneControl>();
         [SerializeField]
-        public BasisBoneTrackedRole[] trackedRoles;
+        public List<BasisBoneTrackedRole> AllBoneRoles = new List<BasisBoneTrackedRole>();
+        public int TotalControlCount;
+        [SerializeField]
+        public BasisBoneControl[] OnRenderControls;
+        [SerializeField]
+        public BasisBoneTrackedRole[] OnRendertrackedRoles;
+        [SerializeField]
+        public BasisBoneTrackedRole[] OnLateUpdatetrackedRoles;
+
         public bool HasControls = false;
         public double ProvidedTime;
         public float DeltaTime;
+
         public delegate void SimulationHandler();
-        public event SimulationHandler OnSimulate;
+        public event SimulationHandler OnLateSimulate;
         public event SimulationHandler OnPostSimulate;
         public event SimulationHandler ReadyToRead;
         /// <summary>
         /// call this after updating the bone data
         /// </summary>
-        public void Simulate()
+        public void LateUpdateSimulate()
         {
+            OnLateSimulate?.Invoke();
             // sequence all other devices to run at the same time
-            OnSimulate?.Invoke();
+            //  OnLateSimulate?.Invoke();
             //make sure to update time only after we invoke (its going to take time)
             ProvidedTime = Time.timeAsDouble;
             DeltaTime = Time.deltaTime;
-            for (int Index = 0; Index < ControlsLength; Index++)
+            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
             {
-                Controls[Index].ComputeMovement(ProvidedTime, DeltaTime);
+                LateUpdateControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
+            }
+         //   OnPostSimulate?.Invoke();
+        }
+        public void OnRenderUpdateSimulate()
+        {
+            //make sure to update time only after we invoke (its going to take time)
+            ProvidedTime = Time.timeAsDouble;
+            DeltaTime = Time.deltaTime;
+            for (int Index = 0; Index < OnRenderControlsLength; Index++)
+            {
+                OnRenderControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
             }
             OnPostSimulate?.Invoke();
         }
         public void SimulateWithoutLerp()
         {
             // sequence all other devices to run at the same time
-            OnSimulate?.Invoke();
+            OnLateSimulate?.Invoke();
             //make sure to update time only after we invoke (its going to take time)
             ProvidedTime = Time.timeAsDouble;
             DeltaTime = Time.deltaTime;
-            for (int Index = 0; Index < ControlsLength; Index++)
+            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
             {
-                Controls[Index].LastRunData.position = Controls[Index].OutGoingData.position;
-                Controls[Index].LastRunData.rotation = Controls[Index].OutGoingData.rotation;
-                Controls[Index].LastWorldData.position = Controls[Index].OutgoingWorldData.position;
-                Controls[Index].LastWorldData.rotation = Controls[Index].OutgoingWorldData.rotation;
-                Controls[Index].ComputeMovement(ProvidedTime, DeltaTime);
+                LateUpdateControls[Index].LastRunData.position = LateUpdateControls[Index].OutGoingData.position;
+                LateUpdateControls[Index].LastRunData.rotation = LateUpdateControls[Index].OutGoingData.rotation;
+                LateUpdateControls[Index].LastWorldData.position = LateUpdateControls[Index].OutgoingWorldData.position;
+                LateUpdateControls[Index].LastWorldData.rotation = LateUpdateControls[Index].OutgoingWorldData.rotation;
+                LateUpdateControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
+            }
+            for (int Index = 0; Index < OnRenderControlsLength; Index++)
+            {
+                OnRenderControls[Index].LastRunData.position = OnRenderControls[Index].OutGoingData.position;
+                OnRenderControls[Index].LastRunData.rotation = OnRenderControls[Index].OutGoingData.rotation;
+                OnRenderControls[Index].LastWorldData.position = OnRenderControls[Index].OutgoingWorldData.position;
+                OnRenderControls[Index].LastWorldData.rotation = OnRenderControls[Index].OutgoingWorldData.rotation;
+                OnRenderControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
             }
             OnPostSimulate?.Invoke();
         }
-        public void ApplyMovement()
+        public void ApplyOnRenderMovement()
         {
-            for (int Index = 0; Index < ControlsLength; Index++)
+            for (int Index = 0; Index < OnRenderControlsLength; Index++)
             {
-                Controls[Index].ApplyMovement();
+                OnRenderControls[Index].ApplyMovement();
+            }
+            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
+            {
+                LateUpdateControls[Index].ApplyMovement();
             }
             ReadyToRead?.Invoke();
         }
-        public void SimulateAndApply()
+        public void SimulateOnRender()
         {
-            Simulate();
-            ApplyMovement();
+            OnRenderUpdateSimulate();
+            ApplyOnRenderMovement();
+        }
+        public void SimulateOnLateUpdate()
+        {
+            LateUpdateSimulate();
         }
         public void SimulateAndApplyWithoutLerp()
         {
             SimulateWithoutLerp();
-            ApplyMovement();
+            ApplyOnRenderMovement();
         }
         public void CalibrateOffsets()
         {
-            for (int Index = 0; Index < ControlsLength; Index++)
+            for (int Index = 0; Index < TotalControlCount; Index++)
             {
-                if (trackedRoles[Index] != BasisBoneTrackedRole.Head)
+                if (AllBoneRoles[Index] != BasisBoneTrackedRole.Head)
                 {
-                    Controls[Index].SetOffset();
+                    AllBoneControls[Index].SetOffset();
                 }
-
             }
         }
         public void RemoveAllListeners()
         {
-            for (int Index = 0; Index < ControlsLength; Index++)
+            for (int Index = 0; Index < TotalControlCount; Index++)
             {
-                Controls[Index].OnHasRigChanged.RemoveAllListeners();
-                Controls[Index].WeightsChanged.RemoveAllListeners();
+                AllBoneControls[Index].OnHasRigChanged.RemoveAllListeners();
+                AllBoneControls [Index].WeightsChanged.RemoveAllListeners();
             }
         }
         public void ResetBoneModel()
         {
-            for (int Index = 0; Index < ControlsLength; Index++)
+            for (int Index = 0; Index < TotalControlCount; Index++)
             {
-                Controls[Index].BoneModelTransform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                AllBoneControls[Index].BoneModelTransform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
             }
-        }
-        public void AddRange(BasisBoneControl[] newControls, BasisBoneTrackedRole[] newRoles)
-        {
-            Controls = Controls.Concat(newControls).ToArray();
-            trackedRoles = trackedRoles.Concat(newRoles).ToArray();
-            ControlsLength = Controls.Length;
         }
         public bool FindBone(out BasisBoneControl control, BasisBoneTrackedRole Role)
         {
-            int Index = Array.IndexOf(trackedRoles, Role);
+            int Index = Array.IndexOf(OnLateUpdatetrackedRoles, Role);
 
-            if (Index >= 0 && Index < ControlsLength)
+            if (Index >= 0 && Index < OnLateUpdateControlsLength)
             {
-                control = Controls[Index];
+                control = LateUpdateControls[Index];
                 return true;
             }
 
+             Index = Array.IndexOf(OnRendertrackedRoles, Role);
+
+            if (Index >= 0 && Index < OnRenderControlsLength)
+            {
+                control = OnRenderControls[Index];
+                return true;
+            }
             control = new BasisBoneControl();
             return false;
         }
         public bool FindTrackedRole(BasisBoneControl control, out BasisBoneTrackedRole Role)
         {
-            int Index = Array.IndexOf(Controls, control);
 
-            if (Index >= 0 && Index < ControlsLength)
+            int Index = Array.IndexOf(LateUpdateControls, control);
+
+            if (Index >= 0 && Index < OnLateUpdateControlsLength)
             {
-                Role = trackedRoles[Index];
+                Role = OnLateUpdatetrackedRoles[Index];
+                return true;
+            }
+
+            Index = Array.IndexOf(OnRenderControls, control);
+
+            if (Index >= 0 && Index < OnRenderControlsLength)
+            {
+                Role = OnRendertrackedRoles[Index];
                 return true;
             }
 
@@ -137,12 +185,20 @@ namespace Basis.Scripts.Drivers
         }
         public void CreateInitialArrays(Transform Parent)
         {
-            trackedRoles = new BasisBoneTrackedRole[] { };
-            Controls = new BasisBoneControl[] { };
+            OnRendertrackedRoles = new BasisBoneTrackedRole[] { };
+
+            OnRenderControls = new BasisBoneControl[] { };
+            LateUpdateControls = new BasisBoneControl[] { };
+
             int Length = Enum.GetValues(typeof(BasisBoneTrackedRole)).Length;
             Color[] Colors = GenerateRainbowColors(Length);
-            List<BasisBoneControl> newControls = new List<BasisBoneControl>();
-            List<BasisBoneTrackedRole> Roles = new List<BasisBoneTrackedRole>();
+
+            List<BasisBoneControl> OnRendernewControls = new List<BasisBoneControl>();
+            List<BasisBoneTrackedRole> OnRenderRoles = new List<BasisBoneTrackedRole>();
+
+            List<BasisBoneControl> LateUpdatenewControls = new List<BasisBoneControl>();
+            List<BasisBoneTrackedRole> OLateUpdateRoles = new List<BasisBoneTrackedRole>();
+
             for (int Index = 0; Index < Length; Index++)
             {
                 BasisBoneTrackedRole role = (BasisBoneTrackedRole)Index;
@@ -158,10 +214,37 @@ namespace Basis.Scripts.Drivers
                 Control.GeneralLocation = BasisAvatarIKStageCalibration.FindGeneralLocation(role);
                 Control.Initialize();
                 FillOutBasicInformation(Control, role.ToString(), Colors[Index]);
-                newControls.Add(Control);
-                Roles.Add(role);
+                if (role == BasisBoneTrackedRole.CenterEye)
+                {
+                    OnRendernewControls.Add(Control);
+                    OnRenderRoles.Add(role);
+                }
+                else
+                {
+                    LateUpdatenewControls.Add(Control);
+                    OLateUpdateRoles.Add(role);
+                }
             }
-            AddRange(newControls.ToArray(), Roles.ToArray());
+
+            OnRenderControls = OnRenderControls.Concat(OnRendernewControls).ToArray();
+            OnRendertrackedRoles = OnRendertrackedRoles.Concat(OnRenderRoles).ToArray();
+            OnRenderControlsLength = OnRenderControls.Length;
+
+            LateUpdateControls = LateUpdateControls.Concat(LateUpdatenewControls).ToArray();
+            OnLateUpdatetrackedRoles = OnLateUpdatetrackedRoles.Concat(OLateUpdateRoles).ToArray();
+            OnLateUpdateControlsLength = LateUpdateControls.Length;
+
+            AllBoneRoles.Clear();
+            AllBoneControls.Clear();
+
+            AllBoneControls.AddRange(OnRenderControls);
+            AllBoneControls.AddRange(LateUpdateControls);
+
+            AllBoneRoles.AddRange(OnLateUpdatetrackedRoles);
+            AllBoneRoles.AddRange(OnRendertrackedRoles);
+
+            TotalControlCount = OnRenderControlsLength + OnLateUpdateControlsLength;
+
             HasControls = true;
         }
         public void FillOutBasicInformation(BasisBoneControl Control, string Name, Color Color)
@@ -239,9 +322,9 @@ namespace Basis.Scripts.Drivers
         {
             if (HasControls && Gizmos.Enabled)
             {
-                for (int Index = 0; Index < ControlsLength; Index++)
+                for (int Index = 0; Index < TotalControlCount; Index++)
                 {
-                    BasisBoneControl Control = Controls[Index];
+                    BasisBoneControl Control = AllBoneControls[Index];
                     DrawGizmos(Control);
                 }
             }

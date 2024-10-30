@@ -173,7 +173,7 @@ namespace Basis.Scripts.Device_Management.Devices
             //events
             if (HasEvents == false)
             {
-                BasisLocalPlayer.Instance.LocalBoneDriver.OnSimulate += PollData;
+                BasisLocalPlayer.Instance.LocalBoneDriver.OnLateSimulate += PollData;
                 BasisLocalPlayer.Instance.OnAvatarSwitched += UnAssignFullBodyTrackers;
                 BasisLocalPlayer.Instance.Move.ReadyToRead += ApplyFinalMovement;
                 HasEvents = true;
@@ -238,7 +238,7 @@ namespace Basis.Scripts.Device_Management.Devices
             UnAssignRoleAndTracker();
             if (HasEvents)
             {
-                BasisLocalPlayer.Instance.LocalBoneDriver.OnSimulate -= PollData;
+                BasisLocalPlayer.Instance.LocalBoneDriver.OnLateSimulate -= PollData;
                 BasisLocalPlayer.Instance.OnAvatarSwitched -= UnAssignFullBodyTrackers;
                 BasisLocalPlayer.Instance.Move.ReadyToRead -= ApplyFinalMovement;
                 HasEvents = false;

@@ -37,7 +37,6 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
         public static string InputActions = "InputActions";
         public bool HasEvents = false;
         public bool IgnoreCrouchToggle = false;
-        public static Action LateUpdateEvent;
         [SerializeField]
         public BasisInputState InputState = new BasisInputState();
         public void OnEnable()
@@ -62,10 +61,9 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
             }
             Application.onBeforeRender += OnBeforeRender;
         }
-
         private void OnBeforeRender()
         {
-            BasisLocalPlayer.Instance.LocalBoneDriver.SimulateAndApply();
+          BasisLocalPlayer.Instance.LocalBoneDriver.SimulateOnRender();
         }
 
         public void Update()
@@ -74,8 +72,7 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
         }
         public void LateUpdate()
         {
-            LateUpdateEvent?.Invoke();
-          //  BasisLocalPlayer.Instance.LocalBoneDriver.SimulateAndApply();
+            BasisLocalPlayer.Instance.LocalBoneDriver.SimulateOnLateUpdate();
         }
         public static async Task CreateInputAction(BasisLocalPlayer Local)
         {

@@ -407,10 +407,10 @@ namespace Basis.Scripts.Drivers
         }
         public void CalibrateRoles()
         {
-            for (int Index = 0; Index < BasisLocalPlayer.Instance.LocalBoneDriver.trackedRoles.Length; Index++)
+            for (int Index = 0; Index < BasisLocalPlayer.Instance.LocalBoneDriver.AllBoneControls.Count; Index++)
             {
-                BasisBoneTrackedRole role = BasisLocalPlayer.Instance.LocalBoneDriver.trackedRoles[Index];
-                BasisBoneControl BoneControl = BasisLocalPlayer.Instance.LocalBoneDriver.Controls[Index];
+                BasisBoneTrackedRole role = BasisLocalPlayer.Instance.LocalBoneDriver.AllBoneRoles[Index];
+                BasisBoneControl BoneControl = BasisLocalPlayer.Instance.LocalBoneDriver.AllBoneControls[Index];
                 if (BoneControl.HasRigLayer == BasisHasRigLayer.HasRigLayer)
                 {
                     ApplyHint(role, 1);
