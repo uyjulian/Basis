@@ -1,6 +1,5 @@
 using UnityEngine;
 using System;
-using System.Linq;
 public abstract class MicrophoneRecorderBase : MonoBehaviour
 {
     public static Action OnHasAudio;
@@ -13,10 +12,13 @@ public abstract class MicrophoneRecorderBase : MonoBehaviour
     public int samplingFrequency;
     public int ProcessBufferLength;
     public float Volume = 1; // Volume adjustment factor, default to 1 (no adjustment)
+    [HideInInspector]
     public float[] microphoneBufferArray;
+    [HideInInspector]
     public float[] processBufferArray;
     public float noiseGateThreshold = 0.01f; // Threshold for the noise gate
     public int Channels = 1;
+    [HideInInspector]
     public float[] rmsValues;
     public int rmsIndex = 0;
     public int rmsWindowSize = 10; // Size of the moving average window
