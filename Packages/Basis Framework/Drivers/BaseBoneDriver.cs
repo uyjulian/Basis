@@ -35,26 +35,9 @@ namespace Basis.Scripts.Drivers
 
         public delegate void SimulationHandler();
         public event SimulationHandler OnLateSimulate;
-        public event SimulationHandler OnPostSimulate;
+        public event SimulationHandler OnRenderPostSimulate;
         public event SimulationHandler ReadyToRead;
-        /// <summary>
-        /// call this after updating the bone data
-        /// </summary>
-        public void LateUpdateSimulate()
-        {
-            OnLateSimulate?.Invoke();
-            // sequence all other devices to run at the same time
-            //  OnLateSimulate?.Invoke();
-            //make sure to update time only after we invoke (its going to take time)
-            ProvidedTime = Time.timeAsDouble;
-            DeltaTime = Time.deltaTime;
-            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
-            {
-                LateUpdateControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
-            }
-         //   OnPostSimulate?.Invoke();
-        }
-        public void OnRenderUpdateSimulate()
+        public void SimulateOnRender()
         {
             //make sure to update time only after we invoke (its going to take time)
             ProvidedTime = Time.timeAsDouble;
@@ -63,15 +46,47 @@ namespace Basis.Scripts.Drivers
             {
                 OnRenderControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
             }
-            OnPostSimulate?.Invoke();
+            OnRenderPostSimulate?.Invoke();
+            for (int Index = 0; Index < OnRenderControlsLength; Index++)
+            {
+                OnRenderControls[Index].ApplyMovement();
+            }
+        }
+        public void SimulateOnLateUpdate()
+        {
+            ProvidedTime = Time.timeAsDouble;
+            DeltaTime = Time.deltaTime;
+            OnLateSimulate?.Invoke();
+            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
+            {
+                LateUpdateControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
+            }
+            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
+            {
+                LateUpdateControls[Index].ApplyMovement();
+            }
+            ReadyToRead?.Invoke();
+        }
+        public void SimulateAndApplyWithoutLerp()
+        {
+            SimulateWithoutLerp();
+            for (int Index = 0; Index < OnRenderControlsLength; Index++)
+            {
+                OnRenderControls[Index].ApplyMovement();
+            }
+            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
+            {
+                LateUpdateControls[Index].ApplyMovement();
+            }
+            ReadyToRead?.Invoke();
         }
         public void SimulateWithoutLerp()
         {
-            // sequence all other devices to run at the same time
-            OnLateSimulate?.Invoke();
             //make sure to update time only after we invoke (its going to take time)
             ProvidedTime = Time.timeAsDouble;
             DeltaTime = Time.deltaTime;
+            // sequence all other devices to run at the same time
+            OnLateSimulate?.Invoke();
             for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
             {
                 LateUpdateControls[Index].LastRunData.position = LateUpdateControls[Index].OutGoingData.position;
@@ -88,33 +103,7 @@ namespace Basis.Scripts.Drivers
                 OnRenderControls[Index].LastWorldData.rotation = OnRenderControls[Index].OutgoingWorldData.rotation;
                 OnRenderControls[Index].ComputeMovement(ProvidedTime, DeltaTime);
             }
-            OnPostSimulate?.Invoke();
-        }
-        public void ApplyOnRenderMovement()
-        {
-            for (int Index = 0; Index < OnRenderControlsLength; Index++)
-            {
-                OnRenderControls[Index].ApplyMovement();
-            }
-            for (int Index = 0; Index < OnLateUpdateControlsLength; Index++)
-            {
-                LateUpdateControls[Index].ApplyMovement();
-            }
-            ReadyToRead?.Invoke();
-        }
-        public void SimulateOnRender()
-        {
-            OnRenderUpdateSimulate();
-            ApplyOnRenderMovement();
-        }
-        public void SimulateOnLateUpdate()
-        {
-            LateUpdateSimulate();
-        }
-        public void SimulateAndApplyWithoutLerp()
-        {
-            SimulateWithoutLerp();
-            ApplyOnRenderMovement();
+            OnRenderPostSimulate?.Invoke();
         }
         public void CalibrateOffsets()
         {

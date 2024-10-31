@@ -12,17 +12,30 @@ namespace Basis.Scripts.BasisCharacterController
         public Vector3 bottomPoint;
         public Vector3 LastbottomPoint;
         public bool groundedPlayer;
-        [SerializeField] public float RunSpeed = 2f;
-        [SerializeField] public float playerSpeed = 1.5f;
-        [SerializeField] public float gravityValue = -9.81f;
-        [SerializeField] public float RaycastDistance = 0.2f;
-        [SerializeField] public float MinimumColliderSize = 0.01f;
-        [SerializeField] public Vector2 MovementVector;
-        [SerializeField] public bool Running;
-        [SerializeField] public BasisLocalBoneDriver driver;
-        [SerializeField] public BasisBoneControl Eye;
-        [SerializeField] public BasisBoneControl Head;
+        [SerializeField]
+        public float RunSpeed = 2f;
+        [SerializeField]
+        public float playerSpeed = 1.5f;
+        [SerializeField]
+        public float gravityValue = -9.81f;
+        [SerializeField]
+        public float RaycastDistance = 0.2f;
+        [SerializeField]
+        public float MinimumColliderSize = 0.01f;
+        [SerializeField]
+        public Vector2 MovementVector;
+        [SerializeField]
+        public bool Running;
+        [SerializeField]
+        public BasisLocalBoneDriver driver;
+        [SerializeField]
+        public BasisBoneControl Eye;
+        [SerializeField]
+        public BasisBoneControl Head;
+        [SerializeField]
+        public BasisBoneControl Hips;
         public bool HasEye;
+        public bool HasHips;
         public bool HasHead;
         private Quaternion currentRotation;
         private float eyeHeight;
@@ -52,6 +65,7 @@ namespace Basis.Scripts.BasisCharacterController
             driver = BasisLocalPlayer.Instance.LocalBoneDriver;
             BasisLocalPlayer.Instance.Move = this;
             HasEye = driver.FindBone(out Eye, BasisBoneTrackedRole.CenterEye);
+            HasHips = driver.FindBone(out Hips, BasisBoneTrackedRole.Hips);
             HasHead = driver.FindBone(out Head, BasisBoneTrackedRole.Head);
             characterController.minMoveDistance = 0;
             characterController.skinWidth = 0.01f;
@@ -77,22 +91,41 @@ namespace Basis.Scripts.BasisCharacterController
             // Apply the force to the object
             body.AddForce(pushDir * pushPower, ForceMode.Impulse);
         }
+        public bool CCharacterSize = true;
+        public bool CCHandleMovement = true;
+        public bool CCGroundCheck = true;
+        public bool CCRotateAround = true;
+        public bool CCReadyToRender = true;
         public void Simulate()
         {
-            CalculateCharacterSize();
-            HandleMovement();
-            GroundCheck();
+            if (CCharacterSize)
+            {
+                CalculateCharacterSize();
+            }
+            if (CCHandleMovement)
+            {
+                HandleMovement();
+            }
+            if (CCGroundCheck)
+            {
+                GroundCheck();
+            }
+            if (CCRotateAround)
+            {
+                // Calculate the rotation amount for this frame
+                float rotationAmount = Rotation.x * RotationSpeed * driver.DeltaTime;
 
-            // Calculate the rotation amount for this frame
-            float rotationAmount = Rotation.x * RotationSpeed * driver.DeltaTime;
+                // Get the current rotation of the player
+                Vector3 currentRotation = BasisLocalPlayer.Instance.transform.eulerAngles;
 
-            // Get the current rotation of the player
-            Vector3 currentRotation = BasisLocalPlayer.Instance.transform.eulerAngles;
-
-            // Add the rotation amount to the current y-axis rotation and use modulo to keep it within 0-360 degrees
-            float newRotationY = (currentRotation.y + rotationAmount) % 360f;
-            this.transform.RotateAround(Eye.OutgoingWorldData.position, Vector3.up, rotationAmount);
-            ReadyToRead?.Invoke();
+                // Add the rotation amount to the current y-axis rotation and use modulo to keep it within 0-360 degrees
+                float newRotationY = (currentRotation.y + rotationAmount) % 360f;
+                this.transform.RotateAround(Hips.OutgoingWorldData.position, Vector3.up, rotationAmount);
+            }
+            if (CCReadyToRender)
+            {
+                ReadyToRead?.Invoke();
+            }
         }
         public void OnRenderObject()
         {
@@ -145,7 +178,7 @@ namespace Basis.Scripts.BasisCharacterController
             // Calculate horizontal movement direction
             Vector3 horizontalMoveDirection = new Vector3(MovementVector.x, 0, MovementVector.y).normalized;
             float speed = Running ? RunSpeed : playerSpeed;
-            Vector3 totalMoveDirection = flattenedRotation * horizontalMoveDirection * speed * Time.deltaTime;
+            Vector3 totalMoveDirection = flattenedRotation * horizontalMoveDirection * speed * driver.DeltaTime;
 
             // Handle jumping and falling
             if (groundedPlayer && HasJumpAction)
@@ -155,7 +188,7 @@ namespace Basis.Scripts.BasisCharacterController
             }
             else
             {
-                currentVerticalSpeed += gravityValue * Time.deltaTime;
+                currentVerticalSpeed += gravityValue * driver.DeltaTime;
             }
 
             // Ensure we don't exceed maximum gravity value speed
@@ -163,7 +196,7 @@ namespace Basis.Scripts.BasisCharacterController
 
 
             HasJumpAction = false;
-            totalMoveDirection.y = currentVerticalSpeed * Time.deltaTime;
+            totalMoveDirection.y = currentVerticalSpeed * driver.DeltaTime;
 
             // Move character
             characterController.Move(totalMoveDirection);
@@ -175,8 +208,7 @@ namespace Basis.Scripts.BasisCharacterController
         public void CalculateCharacterSize()
         {
             eyeHeight = HasEye ? Eye.OutGoingData.position.y : 1.73f;
-            float adjustedHeight = eyeHeight;
-            adjustedHeight = Mathf.Max(adjustedHeight, MinimumColliderSize);
+            float adjustedHeight = Mathf.Max(eyeHeight, MinimumColliderSize);
             SetCharacterHeight(adjustedHeight);
         }
         public void SetCharacterHeight(float height)
@@ -184,7 +216,7 @@ namespace Basis.Scripts.BasisCharacterController
             characterController.height = height;
             float SkinModifiedHeight = height / 2;
 
-            characterController.center = HasEye ? new Vector3(Eye.OutGoingData.position.x, SkinModifiedHeight, Eye.OutGoingData.position.z) : new Vector3(0, SkinModifiedHeight, 0);
+            characterController.center = HasEye ? new Vector3(Hips.OutGoingData.position.x, SkinModifiedHeight, Hips.OutGoingData.position.z) : new Vector3(0, SkinModifiedHeight, 0);
         }
     }
 }

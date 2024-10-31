@@ -51,7 +51,7 @@ namespace Basis.Scripts.Drivers
         private void SubscribeEvents()
         {
             Localplayer.AvatarDriver.CalibrationComplete += OnCalibration;
-            Localplayer.LocalBoneDriver.OnPostSimulate += Simulate;
+            Localplayer.LocalBoneDriver.OnRenderPostSimulate += Simulate;
             Localplayer.AvatarDriver.TposeStateChange += OnTpose;
         }
         public void OnTpose()
@@ -129,7 +129,7 @@ namespace Basis.Scripts.Drivers
             if (HasEvents)
             {
                 Localplayer.AvatarDriver.CalibrationComplete -= OnCalibration;
-                Localplayer.LocalBoneDriver.OnPostSimulate -= Simulate;
+                Localplayer.LocalBoneDriver.OnRenderPostSimulate -= Simulate;
                 Localplayer.AvatarDriver.TposeStateChange -= OnTpose;
                 HasEvents = false;
             }
