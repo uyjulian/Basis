@@ -25,17 +25,16 @@ namespace Basis.Scripts.Drivers
         public delegate void SimulationHandler();
         public event SimulationHandler OnSimulate;
         public event SimulationHandler OnPostSimulate;
-        public event SimulationHandler ReadyToRead;
+        public OrderedDelegate ReadyToRead = new OrderedDelegate();
         /// <summary>
         /// call this after updating the bone data
         /// </summary>
         public void Simulate()
         {
             // sequence all other devices to run at the same time
-            OnSimulate?.Invoke();
-            //make sure to update time only after we invoke (its going to take time)
             ProvidedTime = Time.timeAsDouble;
             DeltaTime = Time.deltaTime;
+            OnSimulate?.Invoke();
             for (int Index = 0; Index < ControlsLength; Index++)
             {
                 Controls[Index].ComputeMovement(ProvidedTime, DeltaTime);
@@ -45,10 +44,9 @@ namespace Basis.Scripts.Drivers
         public void SimulateWithoutLerp()
         {
             // sequence all other devices to run at the same time
-            OnSimulate?.Invoke();
-            //make sure to update time only after we invoke (its going to take time)
             ProvidedTime = Time.timeAsDouble;
             DeltaTime = Time.deltaTime;
+            OnSimulate?.Invoke();
             for (int Index = 0; Index < ControlsLength; Index++)
             {
                 Controls[Index].LastRunData.position = Controls[Index].OutGoingData.position;
@@ -276,6 +274,43 @@ namespace Basis.Scripts.Drivers
                     {
                         Gizmos.Sphere(BonePosition, (BasisAvatarIKStageCalibration.MaxDistanceBeforeMax(role) / 2) * BasisLocalPlayer.Instance.EyeRatioAvatarToAvatarDefaultScale, Control.Color);
                     }
+                }
+            }
+        }
+
+
+        public class OrderedDelegate
+        {
+            private SortedDictionary<int, Action> actions = new SortedDictionary<int, Action>();
+
+            // Add an action with a priority level.
+            public void AddAction(int priority, Action action)
+            {
+                if (actions.ContainsKey(priority))
+                    actions[priority] += action;
+                else
+                    actions[priority] = action;
+            }
+
+            // Remove a specific action from a given priority.
+            public void RemoveAction(int priority, Action action)
+            {
+                if (actions.ContainsKey(priority))
+                {
+                    actions[priority] -= action;
+
+                    // If no delegates remain for this priority, remove the key
+                    if (actions[priority] == null)
+                        actions.Remove(priority);
+                }
+            }
+
+            // Invoke all actions in order of priority.
+            public void Invoke()
+            {
+                foreach (var actionPair in actions)
+                {
+                    actionPair.Value?.Invoke();
                 }
             }
         }
