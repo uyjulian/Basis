@@ -90,7 +90,7 @@ public sealed unsafe class VideoFrameConverter : IDisposable
                 ffmpeg.av_freep(p);
             }
             ret.ThrowExceptionIfError();
-            throw new ApplicationException();
+            throw new Exception();
         }
 
         var data = new byte_ptr8();

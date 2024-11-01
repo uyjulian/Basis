@@ -33,7 +33,7 @@ public static class FFUnityFrameHelper
 
     public static Stopwatch SaveFrameMainStopWatch = new Stopwatch();
     public static int LineCount = 4096 * 4096 * 6;
-    public static Texture2D SaveFrame(AVFrame frame, int width, int height,int ColorCount, AVPixelFormat format)
+    public static Texture2D SaveFrame(ref VideoFrameConverter VideoFrameConverter, AVFrame frame, int width, int height,int ColorCount, AVPixelFormat format)
     {
         SaveFrameStopWatch.Start();
         Texture2D texture = null;
@@ -41,7 +41,7 @@ public static class FFUnityFrameHelper
         try
         {
             texture = new Texture2D(width, height, TextureFormat.RGB24, false);
-            SaveFrame(frame, width, height, ColorCount, texture, format);
+            SaveFrame(ref VideoFrameConverter, frame, width, height, ColorCount, texture, format);
         }
         catch (Exception ex)
         {
@@ -56,7 +56,7 @@ public static class FFUnityFrameHelper
         return texture;
     }
 
-    public unsafe static bool SaveFrame(AVFrame frame, int width, int height,int ColorCount, byte[] texture, AVPixelFormat format)
+    public unsafe static bool SaveFrame(ref VideoFrameConverter VideoFrameConverter, AVFrame frame, int width, int height, int ColorCount, byte[] texture, AVPixelFormat format)
     {
         SaveFrameByteStopWatch.Start();
 
@@ -73,8 +73,8 @@ public static class FFUnityFrameHelper
                 return false;
             }
             int LineSize = width * height * ColorCount;
-            using var converter = new VideoFrameConverter(new System.Drawing.Size(frame.width, frame.height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
-            var convFrame = converter.Convert(frame);
+            CreateNewIfNeeded(ref VideoFrameConverter, frame, width, height);
+            var convFrame = VideoFrameConverter.Convert(frame);
             Marshal.Copy((IntPtr)convFrame.data[0], line, 0, LineSize);
             Array.Copy(line, 0, texture, 0, LineSize);
         }
@@ -91,8 +91,15 @@ public static class FFUnityFrameHelper
 
         return true;
     }
+    public static void CreateNewIfNeeded(ref VideoFrameConverter VideoFrameConverter, AVFrame frame, int width, int height)
+    {
+        if (VideoFrameConverter == null)
+        {
+            VideoFrameConverter = new VideoFrameConverter(new System.Drawing.Size(frame.width, frame.height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
+        }
+    }
 
-    public unsafe static void SaveFrame(AVFrame frame, int width, int height,int ColorCount , Texture2D texture, AVPixelFormat format)
+    public unsafe static void SaveFrame(ref VideoFrameConverter VideoFrameConverter, AVFrame frame, int width, int height,int ColorCount , Texture2D texture, AVPixelFormat format)
     {
         if (line == null)
         {
@@ -108,8 +115,8 @@ public static class FFUnityFrameHelper
         try
         {
             int LineSize = width * height * ColorCount;
-            using var converter = new VideoFrameConverter(new System.Drawing.Size(width, height), (AVPixelFormat)frame.format, new System.Drawing.Size(width, height), AVPixelFormat.AV_PIX_FMT_RGB24);
-            var convFrame = converter.Convert(frame);
+            CreateNewIfNeeded(ref VideoFrameConverter, frame, width, height);
+            var convFrame = VideoFrameConverter.Convert(frame);
 
             if (texture.width != width || texture.height != height)
             {

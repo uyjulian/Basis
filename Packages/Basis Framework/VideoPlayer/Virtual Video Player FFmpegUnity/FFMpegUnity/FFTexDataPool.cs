@@ -6,21 +6,21 @@ namespace FFmpeg.Unity
     {
         private readonly ConcurrentQueue<FFTexData> _pool = new ConcurrentQueue<FFTexData>();
 
-        private FFTexData CreateNewFFTexData(int FrameWidth, int FrameHeight)
+        private FFTexData CreateNewFFTexData(int FrameWidth, int FrameHeight,int BytesPerPixel = 3)// Assuming 3 bytes per pixel (RGB)
         {
             return new FFTexData
             {
-                data = new byte[FrameWidth * FrameHeight * 3], // Assuming 3 bytes per pixel (RGB)
+                data = new byte[FrameWidth * FrameHeight * BytesPerPixel],
                 height = FrameHeight,
                 width = FrameWidth,
             };
         }
 
-        public FFTexData Get(int FrameWidth, int FrameHeight)
+        public FFTexData Get(int FrameWidth, int FrameHeight, int BytesPerPixel = 3)
         {
             if (_pool.TryDequeue(out FFTexData item))
             {
-                int Length = FrameWidth * FrameHeight * 3;
+                int Length = FrameWidth * FrameHeight * BytesPerPixel;
                 if (item.data == null)
                 {
                     item = new FFTexData
