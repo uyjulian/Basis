@@ -453,7 +453,7 @@ namespace FFmpeg.Unity
             DateTime startTime = DateTime.UtcNow;
 
             // Main loop that runs while we are within the target frame time
-            while (elapsedMilliseconds < targetFrameTimeMs)
+            while (elapsedMilliseconds < targetFrameTimeMs && !_paused)
             {
                 // Record the current time at the start of the loop
                 DateTime loopStartTime = DateTime.UtcNow;
