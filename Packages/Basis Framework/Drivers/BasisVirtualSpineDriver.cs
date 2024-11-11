@@ -62,7 +62,7 @@ public class BasisVirtualSpineDriver
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out LeftLowerArm, BasisBoneTrackedRole.LeftLowerArm))
         {
             // LeftUpperArm.HasVirtualOverride = true;
-            BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.AddAction(28, LowerLeftLeg);
+            BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.AddAction(28, LowerLeftArm);
         }
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out RightLowerArm, BasisBoneTrackedRole.RightLowerArm))
         {
@@ -72,7 +72,7 @@ public class BasisVirtualSpineDriver
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out LeftLowerLeg, BasisBoneTrackedRole.LeftLowerLeg))
         {
             //  LeftLowerLeg.HasVirtualOverride = true;
-            BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.AddAction(30, LowerLeftLeg);
+            BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.AddAction(30, LowerRightArm);
         }
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out RightLowerLeg, BasisBoneTrackedRole.RightLowerLeg))
         {

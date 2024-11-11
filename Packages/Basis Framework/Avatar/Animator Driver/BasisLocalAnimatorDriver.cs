@@ -72,6 +72,7 @@ namespace Basis.Scripts.Animator_Driver
             // Calculate the angular velocity of the hips
             deltaRotation = Hips.OutgoingWorldData.rotation * Quaternion.Inverse(previousHipsRotation);
             deltaRotation.ToAngleAxis(out float angle, out Vector3 axis);
+
             angularVelocity = axis * angle / DeltaTime;
 
             // Apply dampening to the angular velocity

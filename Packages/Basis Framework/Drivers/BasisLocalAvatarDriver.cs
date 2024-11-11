@@ -140,8 +140,8 @@ namespace Basis.Scripts.Drivers
                 TposeStateChange += OnTpose;
                 HasTposeEvent = true;
             }
-            Player.Avatar.transform.parent = Hips.BoneTransform;
-            Player.Avatar.transform.SetLocalPositionAndRotation(-Hips.TposeLocal.position, Quaternion.identity);
+            Player.Avatar.transform.parent = BasisLocalPlayer.Instance.transform;
+            Player.Avatar.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
             BasisLocalPlayer.Instance.LocalBoneDriver.CalibrateOffsets();
             BuildBuilder();
             if (Builder.enabled == false)
@@ -171,10 +171,6 @@ namespace Basis.Scripts.Drivers
                 {
                 }
             }
-        }
-        public void GlobalWeight()
-        {
-
         }
         public void CleanupBeforeContinue()
         {
@@ -410,17 +406,17 @@ namespace Basis.Scripts.Drivers
         /// </summary>
         private void SetupSpineRig(BasisLocalBoneDriver driver)
         {
-            GameObject Body = CreateRig("Spine, Chest", true, out ChestSpineRig, out ChestSpineLayer);
-            CreateTwoBone(driver, Body, References.spine, References.chest, References.Upperchest, BasisBoneTrackedRole.Spine, BasisBoneTrackedRole.Chest, true, out UpperChestTwoBoneIK, false, true);
+            GameObject Body = CreateRig("Hips,Spine, Chest", true, out ChestSpineRig, out ChestSpineLayer);
+            CreateTwoBone(driver, Body, References.Hips, References.spine, References.chest, BasisBoneTrackedRole.Hips, BasisBoneTrackedRole.Spine, true, out UpperChestTwoBoneIK, true, true);
 
             List<BasisBoneControl> controls = new List<BasisBoneControl>();
+            if (driver.FindBone(out BasisBoneControl Hips, BasisBoneTrackedRole.Hips))
+            {
+                controls.Add(Hips);
+            }
             if (driver.FindBone(out BasisBoneControl Spine, BasisBoneTrackedRole.Spine))
             {
                 controls.Add(Spine);
-            }
-            if (driver.FindBone(out BasisBoneControl Chest, BasisBoneTrackedRole.Chest))
-            {
-                controls.Add(Chest);
             }
             WriteUpEvents(controls, ChestSpineLayer);
         }
