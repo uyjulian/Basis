@@ -123,34 +123,36 @@ public class BasisVirtualSpineDriver
         Chest.HasVirtualOverride = false;
         Hips.HasVirtualOverride = false;
     }
+    public Quaternion targetNeckRotation;
+    public Quaternion NeckOutput;
+    public Quaternion ChestOutput;
+    public float3 pelvisRotation;
+
+    public float3 HeadRotation;
     public void OnSimulateNeck()
     {
         float time = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
         // Lock pelvis Y rotation to head Y rotation, but keep the X and Z rotations of pelvis intact
-        float3 pelvisRotationYOnly = math.Euler(Hips.OutGoingData.rotation);
-        float3 HeadRotationYOnly = math.Euler(Head.OutGoingData.rotation);
+         pelvisRotation = math.EulerXYZ(Hips.OutGoingData.rotation);
+         HeadRotation = math.EulerXYZ(Head.OutGoingData.rotation);
 
-        quaternion HipsRotation = Quaternion.Euler(pelvisRotationYOnly.x, HeadRotationYOnly.y, pelvisRotationYOnly.z);
+        pelvisRotation = math.degrees(pelvisRotation); // Convert to degrees
+        HeadRotation = math.degrees(HeadRotation); // Convert to degrees
 
+        // Creating a new pelvis rotation quaternion that maintains the X and Z rotation while updating Y to match head's Y rotation
+        quaternion HipsRotation = Quaternion.Euler(pelvisRotation.x, HeadRotation.y, pelvisRotation.z);
+
+        // Smooth pelvis rotation
         Hips.OutGoingData.rotation = Quaternion.Slerp(Hips.OutGoingData.rotation, HipsRotation, time * HipsRotationSpeed);
 
-       float3 HeadEuler = math.Euler(Head.OutGoingData.rotation);
-        // Calculate the desired rotation for the neck, with limits
-        float headPitch = HeadEuler.x;
-        float headYaw = HeadEuler.y;
-
         // Smooth the neck rotation and clamp it to prevent unnatural flipping
-        float clampedHeadPitch = Mathf.Clamp(headPitch, -MaxNeckAngle, MaxNeckAngle);
-        quaternion targetNeckRotation = Quaternion.Euler(clampedHeadPitch, headYaw, 0);
+        float clampedHeadPitch = Mathf.Clamp(HeadRotation.x, -MaxNeckAngle, MaxNeckAngle);
+        targetNeckRotation = Quaternion.Euler(clampedHeadPitch, HeadRotation.y, 0);
 
         // Smooth transition for the neck to follow the head
-        Neck.OutGoingData.rotation = Quaternion.Slerp(Neck.OutGoingData.rotation, targetNeckRotation, time * NeckRotationSpeed);
-
-        float3 neckEuler = math.Euler(Neck.OutGoingData.rotation);
-        // Clamp the neck's final rotation to avoid excessive twisting
-        float clampedNeckPitch = Mathf.Clamp(neckEuler.x, -MaxNeckAngle, MaxNeckAngle);
-        Neck.OutGoingData.rotation = Quaternion.Euler(clampedNeckPitch, neckEuler.y, 0);
+        NeckOutput = Quaternion.Slerp(Neck.OutGoingData.rotation, targetNeckRotation, time * NeckRotationSpeed);
+        Neck.OutGoingData.rotation = NeckOutput;
 
         // Now, apply the spine curve progressively:
         // The chest should not follow the head directly, it should follow the neck but with reduced influence.
@@ -164,11 +166,11 @@ public class BasisVirtualSpineDriver
         float chestPitch = targetChestRotation.eulerAngles.x;
         float chestYaw = targetChestRotation.eulerAngles.y;
         float clampedChestPitch = Mathf.Clamp(chestPitch, -MaxChestAngle, MaxChestAngle);
-        Chest.OutGoingData.rotation = Quaternion.Euler(clampedChestPitch, chestYaw, 0);
+        ChestOutput = Quaternion.Euler(clampedChestPitch, chestYaw, 0);
+        Chest.OutGoingData.rotation = ChestOutput;
 
         // The hips should stay upright, using chest rotation as a reference
-        Quaternion targetHipsRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, time * HipsInfluence // Lesser influence for hips to remain more upright
-        );
+        Quaternion targetHipsRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, time * HipsInfluence);
 
         // Clamp the hips' rotation to prevent flipping
         float hipsPitch = targetHipsRotation.eulerAngles.x;
@@ -181,7 +183,6 @@ public class BasisVirtualSpineDriver
         ApplyPositionControl(Neck);
         ApplyPositionControl(Chest);
     }
-
     private void ApplyPositionControl(BasisBoneControl boneControl)
     {
         // Check if the position control target is set

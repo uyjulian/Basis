@@ -152,17 +152,22 @@ namespace Basis.Scripts.Animator_Driver
             AssignHipsFBTracker();
         }
         public Vector3 PositionOfAvatarLocal;
+        public float3 differenceHead;
+        public float3 hipsDifference;
+        public Vector3 outputPosition;
+        public Vector3 eulerAngles;
+        public Quaternion hipsDifferenceQ;
         public void SimulateAvatarRotation()
         {
             // Calculate position differences relative to the T-pose
-            float3 differenceHead = Head.OutGoingData.position - new float3(Head.TposeLocal.position.x, Head.TposeLocal.position.y,0);
-            float3 hipsDifference = Hips.OutGoingData.position - new float3(Hips.TposeLocal.position.x, Hips.TposeLocal.position.y,0);
+            differenceHead = Head.OutGoingData.position - new float3(Head.TposeLocal.position.x, Head.TposeLocal.position.y, 0);
+            hipsDifference = Hips.OutGoingData.position - new float3(Hips.TposeLocal.position.x, Hips.TposeLocal.position.y, 0);
             // Interpolate between the two positions
-            Vector3 outputPosition = Vector3.Lerp(differenceHead, hipsDifference, 0.5f);
+            outputPosition = Vector3.Lerp(differenceHead, hipsDifference, 0.5f);
 
-            Vector3 eulerAngles = Quaternion.Inverse(Hips.TposeWorld.rotation).eulerAngles;
+            eulerAngles = Quaternion.Inverse(Hips.TposeWorld.rotation).eulerAngles;
             // Calculate rotation difference and lock Z rotation
-            Quaternion hipsDifferenceQ = Hips.OutGoingData.rotation * Quaternion.Euler(eulerAngles);
+            hipsDifferenceQ = Hips.OutGoingData.rotation * Quaternion.Euler(eulerAngles);
             // Apply the new position and locked rotation to the animator
             animator.transform.SetLocalPositionAndRotation(outputPosition, hipsDifferenceQ);
         }

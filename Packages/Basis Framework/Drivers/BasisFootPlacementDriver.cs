@@ -71,6 +71,7 @@ namespace Basis.Scripts.Drivers
                 bool hasLayerActive = SquareVel <= MaxBeforeDisableIK;
 
                 float3 HipsEuler = math.Euler(Hips.OutGoingData.rotation);
+                HipsEuler = math.degrees(HipsEuler); // Convert to degrees
 
                 leftFootSolver.Simulate(hasLayerActive, localTposeHips, hipsPosLocal, HipsEuler);
                 rightFootSolver.Simulate(hasLayerActive, localTposeHips, hipsPosLocal, HipsEuler);
@@ -206,6 +207,7 @@ namespace Basis.Scripts.Drivers
                 IsFeetFarApart = Vector3.Distance(foot.OutGoingData.position, LastFootPosition) > driver.FootDistanceBetweeneachOther;
 
                 float3 HipsEuler = math.Euler(foot.OutGoingData.rotation);
+                HipsEuler = math.degrees(HipsEuler); // Convert to degrees
                 RotationDifference = Mathf.Abs(hipsRotation.y - HipsEuler.y);
 
                 if (ShouldMoveFoot())
