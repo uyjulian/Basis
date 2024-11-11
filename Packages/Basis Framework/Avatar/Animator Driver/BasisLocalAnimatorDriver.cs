@@ -42,15 +42,34 @@ namespace Basis.Scripts.Animator_Driver
             {
                 return;
             }
+
             float DeltaTime = localPlayer.LocalBoneDriver.DeltaTime;
-
             // Calculate the velocity of the character controller
-            currentVelocity = Quaternion.Inverse(Hips.OutgoingWorldData.rotation) * (Controller.bottomPointLocalspace - Controller.LastbottomPoint) / DeltaTime;
+            currentVelocity = Quaternion.Inverse(Hips.OutgoingWorldData.rotation)
+                              * (Controller.bottomPointLocalspace - Controller.LastbottomPoint) / DeltaTime;
 
+            // Check if currentVelocity or previousRawVelocity contain NaN values
+            if (float.IsNaN(currentVelocity.x) || float.IsNaN(currentVelocity.y) || float.IsNaN(currentVelocity.z) ||
+                float.IsNaN(previousRawVelocity.x) || float.IsNaN(previousRawVelocity.y) || float.IsNaN(previousRawVelocity.z))
+            {
+                previousRawVelocity = Vector3.zero;  // Reset to a safe default
+                return;
+            }
 
             Vector3 velocityDifference = currentVelocity - previousRawVelocity;
+
+            // Calculate damping factor and apply it with additional NaN/Infinity checks
             float dampingFactor = 1f - Mathf.Exp(-dampingRatio * angularFrequency * DeltaTime);
+            if (float.IsNaN(dampingFactor) || float.IsInfinity(dampingFactor))
+            {
+                dampingFactor = 0f; // Safeguard against invalid damping factor
+            }
+
+            // Calculate dampened velocity
             dampenedVelocity = previousRawVelocity + dampingFactor * velocityDifference;
+
+            // Update previous velocity for the next frame
+            previousRawVelocity = dampenedVelocity;
 
             basisAnimatorVariableApply.BasisAnimatorVariables.Velocity = dampenedVelocity;
             basisAnimatorVariableApply.BasisAnimatorVariables.isMoving = basisAnimatorVariableApply.BasisAnimatorVariables.Velocity.sqrMagnitude > LargerThenVelocityCheck;
@@ -131,20 +150,17 @@ namespace Basis.Scripts.Animator_Driver
             }
             AssignHipsFBTracker();
         }
+        public Vector3 PositionOfAvatarLocal;
         public void SimulateAvatarRotation()
         {
-            // Get the Y (yaw) component of each rotation in Euler angles
-            float hipsYaw = Hips.OutGoingData.rotation.eulerAngles.y;
-            float headYaw = Head.OutGoingData.rotation.eulerAngles.y;
+            // Calculate position differences relative to the T-pose
+            Vector3 differenceHead = Head.OutGoingData.position - Head.TposeLocal.position;
+            Vector3 hipsDifference = Hips.OutGoingData.position - Hips.TposeLocal.position;
 
-            // Interpolate between the two yaw angles
-            float interpolatedYaw = Mathf.LerpAngle(hipsYaw, headYaw, 0.5f);
-
-            // Create a new Quaternion that only has the Y component (yaw) applied
-            Quaternion finalRotation = Quaternion.Euler(0, interpolatedYaw, 0);
-
-            // Apply this rotation to the animator's transform
-            animator.transform.rotation = finalRotation;
+            // Interpolate between the two positions
+            Vector3 outputPosition = Vector3.Lerp(differenceHead, hipsDifference, 0.5f);
+            Quaternion hipsDifferenceQ = Hips.OutGoingData.rotation * Quaternion.Inverse(Hips.TposeWorld.rotation);
+            animator.transform.SetLocalPositionAndRotation(outputPosition, hipsDifferenceQ);
         }
         public void AssignHipsFBTracker()
         {

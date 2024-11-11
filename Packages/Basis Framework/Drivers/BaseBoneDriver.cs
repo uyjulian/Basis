@@ -37,6 +37,12 @@ namespace Basis.Scripts.Drivers
             // sequence all other devices to run at the same time
             ProvidedTime = Time.timeAsDouble;
             DeltaTime = Time.deltaTime;
+            if (float.IsNaN(DeltaTime) || DeltaTime <= 0f)
+            {
+                DeltaTime = 0f;
+                return; // Skip simulation if DeltaTime is invalid or zero
+            }
+
             OnSimulate?.Invoke();
             for (int Index = 0; Index < ControlsLength; Index++)
             {

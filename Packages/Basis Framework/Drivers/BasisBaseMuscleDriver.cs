@@ -1,3 +1,4 @@
+using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.Drivers;
 using System;
 using System.Collections.Generic;
@@ -160,7 +161,7 @@ public abstract class BasisBaseMuscleDriver : MonoBehaviour
     }
     public void UpdateAllFingers(Basis.Scripts.Common.BasisTransformMapping Map, ref PoseData Current)
     {
-        float Rotation = LerpSpeed * Time.deltaTime;
+        float Rotation = LerpSpeed * BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
         // Update Thumb
         if (LeftFinger.ThumbPercentage != LastLeftThumbPercentage)

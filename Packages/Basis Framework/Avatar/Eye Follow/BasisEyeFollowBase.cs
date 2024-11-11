@@ -48,6 +48,7 @@ namespace Basis.Scripts.Eye_Follow
             if (HasEvents)
             {
                 BasisLocalPlayer.Instance.OnSpawnedEvent -= AfterTeleport;
+                BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.RemoveAction(102, Simulate);
                 HasEvents = false;
             }
             //its regenerated this script will be nuked and rebuilt BasisLocalPlayer.OnLocalAvatarChanged -= AfterTeleport;
@@ -59,6 +60,7 @@ namespace Basis.Scripts.Eye_Follow
             if (HasEvents == false)
             {
                 BasisLocalPlayer.Instance.OnSpawnedEvent += AfterTeleport;
+                BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.AddAction(102, Simulate);
                 HasEvents = true;
             }
             BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out Eye, BasisBoneTrackedRole.CenterEye);
@@ -67,6 +69,7 @@ namespace Basis.Scripts.Eye_Follow
             {
                 // GameObject EyeIK = CharacterAvatarDriver.CreateRig("Eye", true, out EyeRig, out EyeLayer);
                 GeneralEyeTarget = new GameObject("Eye Target " + CharacterAvatarDriver.Player.DisplayName).transform;
+                GeneralEyeTarget.parent = BasisLocalPlayer.Instance.transform;
                 CharacterAvatarDriver.transform.GetPositionAndRotation(out Vector3 position, out Quaternion rotation);
                 GeneralEyeTarget.SetPositionAndRotation(position, rotation);
                 //  CharacterAvatarDriver.MultiRotation(EyeIK, CharacterAvatarDriver.References.LeftEye, GeneralEyeTarget);
