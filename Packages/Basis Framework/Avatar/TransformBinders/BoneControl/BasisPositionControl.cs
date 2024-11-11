@@ -1,4 +1,5 @@
 ﻿using System;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Basis.Scripts.TransformBinders.BoneControl
@@ -7,7 +8,7 @@ namespace Basis.Scripts.TransformBinders.BoneControl
     public struct BasisPositionControl
     {
         public bool HasTarget;
-        public Vector3 Offset;
+        public float3 Offset;
         public float LerpAmount;
         [NonSerialized]
         public BasisBoneControl Target;

@@ -44,10 +44,10 @@ namespace Basis.Scripts.TransformBinders.BoneControl
                 if (InverseOffsetFromBone.Use)
                 {
                     // Update the position of the secondary transform to maintain the initial offset
-                    OutGoingData.position = IncomingData.position + IncomingData.rotation * InverseOffsetFromBone.position;
+                    OutGoingData.position = IncomingData.position + math.mul(IncomingData.rotation, InverseOffsetFromBone.position);
 
                     // Update the rotation of the secondary transform to maintain the initial offset
-                    OutGoingData.rotation = IncomingData.rotation * InverseOffsetFromBone.rotation;
+                    OutGoingData.rotation = math.mul(IncomingData.rotation, InverseOffsetFromBone.rotation);
                 }
                 else
                 {
@@ -72,13 +72,17 @@ namespace Basis.Scripts.TransformBinders.BoneControl
 
                     if (PositionControl.HasTarget)
                     {
-                        Vector3 customDirection = PositionControl.Target.OutGoingData.rotation * PositionControl.Offset;
-                        Vector3 OutGoing = PositionControl.Target.OutGoingData.position + customDirection;
-                        // Calculate the interpolation factor
+                        // Apply the rotation offset using math.mul
+                        float3 customDirection = math.mul(PositionControl.Target.OutGoingData.rotation, PositionControl.Offset);
+
+                        // Calculate the target outgoing position with the rotated offset
+                        float3 targetPosition = PositionControl.Target.OutGoingData.position + customDirection;
+
+                        // Clamp the interpolation factor to ensure it stays between 0 and 1
                         float lerpFactor = math.clamp(PositionControl.LerpAmount * DeltaTime, 0f, 1f);
 
-                        // Use math.lerp for interpolation with float3 (which is the equivalent of Vector3 in Unity.Mathematics)
-                        OutGoingData.position = math.lerp(LastRunData.position, OutGoing, lerpFactor);
+                        // Interpolate between the last position and the target position
+                        OutGoingData.position = math.lerp(LastRunData.position, targetPosition, lerpFactor);
                     }
                 }
             }
@@ -212,7 +216,9 @@ namespace Basis.Scripts.TransformBinders.BoneControl
         {
             if (HasBone)
             {
-                BoneTransform.GetLocalPositionAndRotation(out LastRunData.position, out LastRunData.rotation);
+                BoneTransform.GetLocalPositionAndRotation(out Vector3 position, out Quaternion Rotation);
+                LastRunData.position = position;
+                LastRunData.rotation = Rotation;
             }
         }
         public void ApplyMovement()
@@ -224,7 +230,10 @@ namespace Basis.Scripts.TransformBinders.BoneControl
             LastRunData.position = OutGoingData.position;
             LastRunData.rotation = OutGoingData.rotation;
             BoneTransform.SetLocalPositionAndRotation(OutGoingData.position, OutGoingData.rotation);
-            BoneTransform.GetPositionAndRotation(out OutgoingWorldData.position, out OutgoingWorldData.rotation);
+            BoneTransform.GetPositionAndRotation(out Vector3 position, out Quaternion Rotation);
+
+            OutgoingWorldData.position = position;
+            OutgoingWorldData.rotation = Rotation;
         }
     }
 }

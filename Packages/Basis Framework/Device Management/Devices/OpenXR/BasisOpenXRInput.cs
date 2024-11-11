@@ -1,5 +1,6 @@
 using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.TransformBinders.BoneControl;
+using Unity.Mathematics;
 using UnityEngine;
 using static BasisBaseMuscleDriver;
 
@@ -33,19 +34,22 @@ namespace Basis.Scripts.Device_Management.Devices.OpenXR
             if (Device.isValid)
             {
                 // Rotation and Position
-                if (Device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.deviceRotation, out LocalRawRotation))
+                if (Device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.deviceRotation, out Quaternion Rotation))
                 {
+                    LocalRawRotation = Rotation;
                     if (hasRoleAssigned && Control.HasTracked != BasisHasTracked.HasNoTracker)
                     {
-                        Control.IncomingData.rotation = FinalRotation * AvatarRotationOffset;
+                        Control.IncomingData.rotation = math.mul(LocalRawRotation, AvatarRotationOffset);
                     }
                 }
 
-                if (Device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.devicePosition, out LocalRawPosition))
+                if (Device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.devicePosition, out Vector3 Position))
                 {
+                    LocalRawPosition = Position;
                     if (hasRoleAssigned && Control.HasTracked != BasisHasTracked.HasNoTracker)
                     {
-                        Control.IncomingData.position = LocalRawPosition - LocalRawRotation * AvatarPositionOffset;
+                        // Apply the inverse rotation to position offset
+                        Control.IncomingData.position = LocalRawPosition - math.mul(LocalRawRotation, AvatarPositionOffset);
                     }
                 }
 

@@ -4,6 +4,7 @@ using Basis.Scripts.Device_Management.Devices;
 using Basis.Scripts.Device_Management.Devices.Desktop;
 using Basis.Scripts.TransformBinders.BoneControl;
 using UnityEngine;
+using Unity.Mathematics;
 namespace Basis.Scripts.Animator_Driver
 {
     public class BasisLocalAnimatorDriver : MonoBehaviour
@@ -154,8 +155,8 @@ namespace Basis.Scripts.Animator_Driver
         public void SimulateAvatarRotation()
         {
             // Calculate position differences relative to the T-pose
-            Vector3 differenceHead = Head.OutGoingData.position - new Vector3(Head.TposeLocal.position.x, Head.TposeLocal.position.y,0);
-            Vector3 hipsDifference = Hips.OutGoingData.position - new Vector3(Hips.TposeLocal.position.x, Hips.TposeLocal.position.y,0);
+            float3 differenceHead = Head.OutGoingData.position - new float3(Head.TposeLocal.position.x, Head.TposeLocal.position.y,0);
+            float3 hipsDifference = Hips.OutGoingData.position - new float3(Hips.TposeLocal.position.x, Hips.TposeLocal.position.y,0);
             // Interpolate between the two positions
             Vector3 outputPosition = Vector3.Lerp(differenceHead, hipsDifference, 0.5f);
 

@@ -7,6 +7,7 @@ using Basis.Scripts.Avatar;
 using Basis.Scripts.BasisSdk.Helpers;
 using Basis.Scripts.BasisSdk.Players;
 using Gizmos = Popcron.Gizmos;
+using Unity.Mathematics;
 
 namespace Basis.Scripts.Drivers
 {
@@ -208,7 +209,7 @@ namespace Basis.Scripts.Drivers
         }
         public static Vector3 ConvertToAvatarSpaceInital(Animator animator, Vector3 WorldSpace, float AvatarHeightOffset)// out Vector3 FloorPosition
         {
-            if (BasisHelpers.TryGetFloor(animator, out Vector3 Bottom))
+            if (BasisHelpers.TryGetFloor(animator, out float3 Bottom))
             {
                 //FloorPosition = Bottom;
                 return BasisHelpers.ConvertToLocalSpace(WorldSpace + new Vector3(0f, AvatarHeightOffset, 0f), Bottom);

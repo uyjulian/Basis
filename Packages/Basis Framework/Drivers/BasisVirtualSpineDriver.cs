@@ -1,5 +1,6 @@
 using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.TransformBinders.BoneControl;
+using Unity.Mathematics;
 using UnityEngine;
 
 [System.Serializable]
@@ -127,28 +128,29 @@ public class BasisVirtualSpineDriver
         float time = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
         // Lock pelvis Y rotation to head Y rotation, but keep the X and Z rotations of pelvis intact
-        Vector3 pelvisRotationYOnly = Hips.OutGoingData.rotation.eulerAngles;
+        float3 pelvisRotationYOnly = math.Euler(Hips.OutGoingData.rotation);
+        float3 HeadRotationYOnly = math.Euler(Head.OutGoingData.rotation);
 
-        Quaternion HipsRotation = Quaternion.Euler(pelvisRotationYOnly.x, Head.OutGoingData.rotation.eulerAngles.y, pelvisRotationYOnly.z);
+        quaternion HipsRotation = Quaternion.Euler(pelvisRotationYOnly.x, HeadRotationYOnly.y, pelvisRotationYOnly.z);
 
         Hips.OutGoingData.rotation = Quaternion.Slerp(Hips.OutGoingData.rotation, HipsRotation, time * HipsRotationSpeed);
 
+       float3 HeadEuler = math.Euler(Head.OutGoingData.rotation);
         // Calculate the desired rotation for the neck, with limits
-        float headPitch = Head.OutGoingData.rotation.eulerAngles.x;
-        float headYaw = Head.OutGoingData.rotation.eulerAngles.y;
+        float headPitch = HeadEuler.x;
+        float headYaw = HeadEuler.y;
 
         // Smooth the neck rotation and clamp it to prevent unnatural flipping
         float clampedHeadPitch = Mathf.Clamp(headPitch, -MaxNeckAngle, MaxNeckAngle);
-        Quaternion targetNeckRotation = Quaternion.Euler(clampedHeadPitch, headYaw, 0);
+        quaternion targetNeckRotation = Quaternion.Euler(clampedHeadPitch, headYaw, 0);
 
         // Smooth transition for the neck to follow the head
         Neck.OutGoingData.rotation = Quaternion.Slerp(Neck.OutGoingData.rotation, targetNeckRotation, time * NeckRotationSpeed);
 
+        float3 neckEuler = math.Euler(Neck.OutGoingData.rotation);
         // Clamp the neck's final rotation to avoid excessive twisting
-        float neckPitch = Neck.OutGoingData.rotation.eulerAngles.x;
-        float neckYaw = Neck.OutGoingData.rotation.eulerAngles.y;
-        float clampedNeckPitch = Mathf.Clamp(neckPitch, -MaxNeckAngle, MaxNeckAngle);
-        Neck.OutGoingData.rotation = Quaternion.Euler(clampedNeckPitch, neckYaw, 0);
+        float clampedNeckPitch = Mathf.Clamp(neckEuler.x, -MaxNeckAngle, MaxNeckAngle);
+        Neck.OutGoingData.rotation = Quaternion.Euler(clampedNeckPitch, neckEuler.y, 0);
 
         // Now, apply the spine curve progressively:
         // The chest should not follow the head directly, it should follow the neck but with reduced influence.
@@ -182,10 +184,14 @@ public class BasisVirtualSpineDriver
 
     private void ApplyPositionControl(BasisBoneControl boneControl)
     {
+        // Check if the position control target is set
         if (boneControl.PositionControl.HasTarget)
         {
-            Vector3 customDirection = boneControl.PositionControl.Target.OutGoingData.rotation * boneControl.PositionControl.Offset;
-            boneControl.OutGoingData.position = boneControl.PositionControl.Target.OutGoingData.position + customDirection;
+            // Apply the rotation from the target's outgoing rotation to the offset vector
+            float3 rotatedOffset = math.mul(boneControl.PositionControl.Target.OutGoingData.rotation, boneControl.PositionControl.Offset);
+
+            // Set the outgoing position by adding the rotated offset to the target position
+            boneControl.OutGoingData.position = boneControl.PositionControl.Target.OutGoingData.position + rotatedOffset;
         }
     }
 }

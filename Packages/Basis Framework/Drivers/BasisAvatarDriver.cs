@@ -5,6 +5,7 @@ using Basis.Scripts.Common;
 using Basis.Scripts.Device_Management;
 using Basis.Scripts.TransformBinders.BoneControl;
 using System;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Animations.Rigging;
@@ -162,7 +163,7 @@ namespace Basis.Scripts.Drivers
             }
             Addressables.Release(BasisFallBackBoneDataAsync);
         }
-        public void GetBoneRotAndPos(BaseBoneDriver driver, Animator anim, HumanBodyBones bone, Vector3 heightPercentage, out Quaternion Rotation, out Vector3 Position, out bool UsedFallback)
+        public void GetBoneRotAndPos(BaseBoneDriver driver, Animator anim, HumanBodyBones bone, Vector3 heightPercentage, out quaternion Rotation, out float3 Position, out bool UsedFallback)
         {
             if (anim.avatar != null && anim.avatar.isHuman)
             {
@@ -182,7 +183,9 @@ namespace Basis.Scripts.Drivers
                 else
                 {
                     UsedFallback = false;
-                    boneTransform.GetPositionAndRotation(out Position, out Rotation);
+                    boneTransform.GetPositionAndRotation(out Vector3 VPosition, out Quaternion QRotation);
+                    Position = VPosition;
+                    Rotation = QRotation;
                 }
             }
             else
@@ -198,7 +201,7 @@ namespace Basis.Scripts.Drivers
                 UsedFallback = true;
             }
         }
-        public Vector3 CalculateFallbackOffset(HumanBodyBones bone, float fallbackHeight, Vector3 heightPercentage)
+        public float3 CalculateFallbackOffset(HumanBodyBones bone, float fallbackHeight, float3 heightPercentage)
         {
             Vector3 height = fallbackHeight * heightPercentage;
             return bone == HumanBodyBones.Hips ? Multiply(height, -Vector3.up) : Multiply(height, Vector3.up);
@@ -207,11 +210,11 @@ namespace Basis.Scripts.Drivers
         {
             return new Vector3(value.x * scale.x, value.y * scale.y, value.z * scale.z);
         }
-        public void GetWorldSpaceRotAndPos(Func<Vector2> positionSelector, out Quaternion rotation, out Vector3 position)
+        public void GetWorldSpaceRotAndPos(Func<Vector2> positionSelector, out quaternion rotation, out float3 position)
         {
             rotation = Quaternion.identity;
             position = Vector3.zero;
-            if (BasisHelpers.TryGetFloor(Player.Avatar.Animator, out Vector3 bottom))
+            if (BasisHelpers.TryGetFloor(Player.Avatar.Animator, out float3 bottom))
             {
                 Vector3 convertedToVector3 = BasisHelpers.AvatarPositionConversion(positionSelector());
                 position = BasisHelpers.ConvertFromLocalSpace(convertedToVector3, bottom);
