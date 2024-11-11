@@ -23,6 +23,7 @@ namespace Basis.Scripts.Animator_Driver
         private Quaternion previousHipsRotation;
         public BasisCharacterController.BasisCharacterController Controller;
         public BasisBoneControl Hips;
+        public BasisBoneControl Head;
         public Vector3 currentVelocity;
         public Vector3 dampenedVelocity;
         public Vector3 angularVelocity;
@@ -120,12 +121,31 @@ namespace Basis.Scripts.Animator_Driver
             basisAnimatorVariableApply.LoadCachedAnimatorHashes(animator);
             Controller = BasisLocalPlayer.Instance.Move;
             BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out Hips, BasisBoneTrackedRole.Hips);
+            BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out Head, BasisBoneTrackedRole.Head);
             if (HasEvents == false)
             {
                 BasisDeviceManagement.Instance.AllInputDevices.OnListChanged += AssignHipsFBTracker;
+                BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.AddAction(1, SimulateAvatarRotation);
                 HasEvents = true;
             }
             AssignHipsFBTracker();
+        }
+        public void SimulateAvatarRotation()
+        {
+            animator.logWarnings = false;
+
+            // Get the Y (yaw) component of each rotation in Euler angles
+            float hipsYaw = Hips.OutGoingData.rotation.eulerAngles.y;
+            float headYaw = Head.OutGoingData.rotation.eulerAngles.y;
+
+            // Interpolate between the two yaw angles
+            float interpolatedYaw = Mathf.LerpAngle(hipsYaw, headYaw, 0.5f);
+
+            // Create a new Quaternion that only has the Y component (yaw) applied
+            Quaternion finalRotation = Quaternion.Euler(0, interpolatedYaw, 0);
+
+            // Apply this rotation to the animator's transform
+            animator.transform.rotation = finalRotation;
         }
         public void AssignHipsFBTracker()
         {
@@ -136,7 +156,7 @@ namespace Basis.Scripts.Animator_Driver
             if (localPlayer == null)
             {
                 localPlayer = BasisLocalPlayer.Instance;
-               localPlayer.Move.ReadyToRead += Simulate;
+                localPlayer.Move.ReadyToRead += Simulate;
                 localPlayer.Move.JustJumped += JustJumped;
                 localPlayer.Move.JustLanded += JustLanded;
             }
@@ -160,6 +180,7 @@ namespace Basis.Scripts.Animator_Driver
             if (HasEvents)
             {
                 BasisDeviceManagement.Instance.AllInputDevices.OnListChanged -= AssignHipsFBTracker;
+                BasisLocalPlayer.Instance.LocalBoneDriver.ReadyToRead.RemoveAction(1, SimulateAvatarRotation);
             }
         }
     }
