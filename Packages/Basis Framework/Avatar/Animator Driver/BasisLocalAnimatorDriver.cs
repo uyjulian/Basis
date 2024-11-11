@@ -115,6 +115,7 @@ namespace Basis.Scripts.Animator_Driver
         {
             FindReferences();
             this.animator = anim;
+            animator.logWarnings = false;
             animator.updateMode = AnimatorUpdateMode.Normal;
             animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
 
@@ -132,8 +133,6 @@ namespace Basis.Scripts.Animator_Driver
         }
         public void SimulateAvatarRotation()
         {
-            animator.logWarnings = false;
-
             // Get the Y (yaw) component of each rotation in Euler angles
             float hipsYaw = Hips.OutGoingData.rotation.eulerAngles.y;
             float headYaw = Head.OutGoingData.rotation.eulerAngles.y;
