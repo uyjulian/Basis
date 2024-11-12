@@ -155,8 +155,7 @@ namespace Basis.Scripts.Animator_Driver
         public float3 differenceHead;
         public float3 hipsDifference;
         public Vector3 outputPosition;
-        public Vector3 eulerAngles;
-        public Quaternion hipsDifferenceQ;
+        public Quaternion hipsDifferenceQ = Quaternion.identity;
         public void SimulateAvatarRotation()
         {
             // Calculate position differences relative to the T-pose
@@ -165,10 +164,7 @@ namespace Basis.Scripts.Animator_Driver
             // Interpolate between the two positions
             outputPosition = Vector3.Lerp(differenceHead, hipsDifference, 0.5f);
 
-            eulerAngles = Quaternion.Inverse(Hips.TposeWorld.rotation).eulerAngles;
-            // Calculate rotation difference and lock Z rotation
-            hipsDifferenceQ = Hips.OutGoingData.rotation * Quaternion.Euler(eulerAngles);
-            // Apply the new position and locked rotation to the animator
+            hipsDifferenceQ = Hips.OutGoingData.rotation;
             animator.transform.SetLocalPositionAndRotation(outputPosition, hipsDifferenceQ);
         }
         public void AssignHipsFBTracker()

@@ -36,7 +36,6 @@ public class BasisVirtualSpineDriver
     public float MaxChestAngle = 0; // Limit the chest's rotation range
     public float MaxHipsAngle = 15; // Limit the hips' rotation range
     public float HipsInfluence = 0.5f;
-
     public float MiddlePointsLerpFactor = 0.5f;
     public void Initialize()
     {
@@ -122,14 +121,8 @@ public class BasisVirtualSpineDriver
         Chest.HasVirtualOverride = false;
         Hips.HasVirtualOverride = false;
     }
-    public Quaternion targetNeckRotation;
-    public Quaternion NeckOutput;
-    public Quaternion ChestOutput;
-    public float3 pelvisRotation;
-    public float3 HeadRotation;
     public float JointSpeedup = 10f;
     public float SmoothTime = 0.1f; // Adjust for smoother damping
-    private Vector3 velocity = Vector3.zero;
     public void OnSimulateNeck()
     {
         float deltaTime = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
