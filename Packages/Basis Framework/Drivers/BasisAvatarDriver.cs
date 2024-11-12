@@ -264,7 +264,7 @@ namespace Basis.Scripts.Drivers
                 bone.TposeLocal.position = bone.OutGoingData.position;
             }
         }
-        public void SetAndCreateLock(BaseBoneDriver BaseBoneDriver, BasisBoneTrackedRole TargetBone, BasisBoneTrackedRole AssignedTo, float PositionLerpAmount, float QuaternionLerpAmount, bool CreateLocks = true)
+        public void SetAndCreateLock(BaseBoneDriver BaseBoneDriver, BasisBoneTrackedRole TargetBone, BasisBoneTrackedRole AssignedTo, float PositionLerpAmount, float QuaternionLerpAmount, bool CreateLocks = true,bool CaresAboutX = false)
         {
             if (CreateLocks)
             {
@@ -277,12 +277,8 @@ namespace Basis.Scripts.Drivers
                 {
                     Debug.LogError("Cant Find Bone " + TargetBone);
                 }
-                BaseBoneDriver.CreatePositionalLock(AddToBone, LockToBone, PositionLerpAmount);
+                BaseBoneDriver.CreatePositionalLock(AddToBone, LockToBone, PositionLerpAmount, CaresAboutX);
                 BaseBoneDriver.CreateRotationalLock(AddToBone, LockToBone, QuaternionLerpAmount);
-                if (AssignedTo == BasisBoneTrackedRole.Neck)
-                {
-                    AddToBone.PositionControl.Offset += AddToBone.PositionControl.Offset / 2;//replace later! -LD
-                }
             }
         }
         public void FindSkinnedMeshRenders()

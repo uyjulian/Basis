@@ -64,7 +64,8 @@ namespace Basis.Scripts.TransformBinders.BoneControl
                 }
                 else
                 {
-                    //just basic lerp with some speedup
+                    //this is essentially the default behaviour, most of it is normally Virtually Overriden
+                    //relying on a one size fits all shoe is wrong and as of such we barely use this anymore.
                     if (RotationControl.HasTarget)
                     {
                         OutGoingData.rotation = ApplyLerpToQuaternion(DeltaTime, LastRunData.rotation, RotationControl.Target.OutGoingData.rotation);

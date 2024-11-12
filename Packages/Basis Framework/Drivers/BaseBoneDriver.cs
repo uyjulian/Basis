@@ -196,11 +196,16 @@ namespace Basis.Scripts.Drivers
             };
             addToBone.RotationControl = rotation;
         }
-        public void CreatePositionalLock(BasisBoneControl Bone, BasisBoneControl Target, float Positional = 40)
+        public void CreatePositionalLock(BasisBoneControl Bone, BasisBoneControl Target, float Positional = 40,bool CaresAboutX = false)
         {
+            Vector3 Offset = Bone.TposeLocal.position - Target.TposeLocal.position;
+            if(CaresAboutX == false)
+            {
+                Offset.x = 0;
+            }
             BasisPositionControl Position = new BasisPositionControl
             {
-                Offset = Bone.TposeLocal.position - Target.TposeLocal.position,
+                Offset = Offset,
                 Target = Target,
                 LerpAmount = Positional,
                 HasTarget = Target != null,
