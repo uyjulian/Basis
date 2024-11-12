@@ -131,52 +131,44 @@ public class BasisVirtualSpineDriver
     public float3 HeadRotation;
     public void OnSimulateNeck()
     {
-        float time = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
+        float deltaTime = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
-        // Lock pelvis Y rotation to head Y rotation, but keep the X and Z rotations of pelvis intact
-        Quaternion HipsRotationConverted = Hips.OutGoingData.rotation;
-        Vector3 pelvisRotationYOnly = HipsRotationConverted.eulerAngles;
+        // Sync pelvis Y rotation to head Y rotation, keeping X and Z intact
+        Quaternion hipsRotationConverted = Hips.OutGoingData.rotation;
+        Vector3 pelvisRotationEuler = hipsRotationConverted.eulerAngles;
+        Quaternion headRotation = Head.OutGoingData.rotation;
+        Quaternion targetHipsRotation = Quaternion.Euler(pelvisRotationEuler.x, headRotation.eulerAngles.y, pelvisRotationEuler.z);
 
-        Quaternion Rotation = Head.OutGoingData.rotation;
-        Quaternion HipsRotation = Quaternion.Euler(pelvisRotationYOnly.x, Rotation.eulerAngles.y, pelvisRotationYOnly.z);
+        Hips.OutGoingData.rotation = Quaternion.Slerp(Hips.OutGoingData.rotation, targetHipsRotation, deltaTime * HipsRotationSpeed);
 
-        Hips.OutGoingData.rotation = Quaternion.Slerp(Hips.OutGoingData.rotation, HipsRotationConverted, time * HipsRotationSpeed);
+        // Calculate target rotation for neck, clamping angles to avoid unnatural rotations
+        Quaternion headRotationConverted = Head.OutGoingData.rotation;
+        Vector3 headEuler = headRotationConverted.eulerAngles;
+        float clampedHeadPitch = Mathf.Clamp(headEuler.x, -MaxNeckAngle, MaxNeckAngle);
+        Quaternion targetNeckRotation = Quaternion.Euler(clampedHeadPitch, headEuler.y, 0);
 
-        // Calculate the desired rotation for the neck, with limits
-        Quaternion HeadRotationConverted = Head.OutGoingData.rotation;
-        float3 HeadRotationVector = HeadRotationConverted.eulerAngles;
+        // Smooth neck rotation towards target with clamped pitch
+        Neck.OutGoingData.rotation = Quaternion.Slerp(Neck.OutGoingData.rotation, targetNeckRotation, deltaTime * NeckRotationSpeed);
 
-        // Smooth the neck rotation and clamp it to prevent unnatural flipping
-        float clampedHeadPitch = Mathf.Clamp(HeadRotationVector.x, -MaxNeckAngle, MaxNeckAngle);
-        Quaternion targetNeckRotation = Quaternion.Euler(clampedHeadPitch, HeadRotationVector.y, 0);
+        // Clamp neck rotation to avoid excessive twisting
+        Quaternion Rotation = Neck.OutGoingData.rotation;
+        Vector3 neckEuler = Rotation.eulerAngles;
+        float clampedNeckPitch = Mathf.Clamp(neckEuler.x, -MaxNeckAngle, MaxNeckAngle);
+        Neck.OutGoingData.rotation = Quaternion.Euler(clampedNeckPitch, neckEuler.y, 0);
 
-        // Smooth transition for the neck to follow the head
-        Neck.OutGoingData.rotation = Quaternion.Slerp(Neck.OutGoingData.rotation, targetNeckRotation, time * NeckRotationSpeed);
+        // Apply progressive rotation from neck to chest with reduced influence
+        Quaternion smoothedChestRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * ChestRotationSpeed);
+        Vector3 chestEuler = smoothedChestRotation.eulerAngles;
+        float clampedChestPitch = Mathf.Clamp(chestEuler.x, -MaxChestAngle, MaxChestAngle);
+        Chest.OutGoingData.rotation = Quaternion.Euler(clampedChestPitch, chestEuler.y, 0);
 
-        // Clamp the neck's final rotation to avoid excessive twisting
-        Quaternion NeckRotation = Neck.OutGoingData.rotation;
-        float3 VectorNeckRotation = NeckRotation.eulerAngles;
-        float clampedNeckPitch = Mathf.Clamp(VectorNeckRotation.x, -MaxNeckAngle, MaxNeckAngle);
-        Neck.OutGoingData.rotation = Quaternion.Euler(clampedNeckPitch, VectorNeckRotation.y, 0);
+        // Upright hips by influencing with chest rotation, clamping for stability
+        Quaternion adjustedHipsRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, deltaTime * HipsInfluence);
+        Vector3 hipsEuler = adjustedHipsRotation.eulerAngles;
+        float clampedHipsPitch = Mathf.Clamp(hipsEuler.x, -MaxHipsAngle, MaxHipsAngle);
+        Hips.OutGoingData.rotation = Quaternion.Euler(clampedHipsPitch, hipsEuler.y, 0);
 
-        // Now, apply the spine curve progressively:
-        // The chest should not follow the head directly, it should follow the neck but with reduced influence.
-        Quaternion targetChestRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, time * ChestRotationSpeed);
-
-        // Clamp the chest's rotation to avoid unnatural bending
-        Vector3 EulerAngleChest = targetChestRotation.eulerAngles;
-        float clampedChestPitch = Mathf.Clamp(EulerAngleChest.x, -MaxChestAngle, MaxChestAngle);
-        Chest.OutGoingData.rotation = Quaternion.Euler(clampedChestPitch, EulerAngleChest.y, 0);
-
-        // The hips should stay upright, using chest rotation as a reference
-        Quaternion targetHipsRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, time * HipsInfluence);// Lesser influence for hips to remain more upright
-
-        // Clamp the hips' rotation to prevent flipping
-        Vector3 HipsTargetRotation = targetHipsRotation.eulerAngles;
-        float clampedHipsPitch = Mathf.Clamp(HipsTargetRotation.x, -MaxHipsAngle, MaxHipsAngle);
-        Hips.OutGoingData.rotation = Quaternion.Euler(clampedHipsPitch, HipsTargetRotation.y, 0);
-
-        // Handle position control for each segment if targets are set (as before)
+        // Apply position control to each segment if target positions are set
         ApplyPositionControl(Hips);
         ApplyPositionControl(Neck);
         ApplyPositionControl(Chest);
