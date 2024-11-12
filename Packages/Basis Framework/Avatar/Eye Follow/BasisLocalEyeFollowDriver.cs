@@ -81,15 +81,5 @@ namespace Basis.Scripts.Eye_Follow
             // Combine with initial rotation for maintained orientation
             return math.mul(initialRotation, math.inverse(initialRotation) * lookRotation);
         }
-
-        public new void OnRenderObject()
-        {
-            if (Gizmos.Enabled)
-            {
-                // Draw position with optimized float3
-                Gizmos.Sphere(RandomizedPosition, 0.1f, Color.yellow);
-                base.OnRenderObject();
-            }
-        }
     }
 }
