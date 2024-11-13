@@ -142,6 +142,6 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
                 UpdatePlayerControl();
             }
         }
-        public BasisVirtualSpineDriver BasisVirtualSpine = new BasisVirtualSpineDriver();
+        public BasisDesktopVirtualSpineDriver BasisVirtualSpine = new BasisDesktopVirtualSpineDriver();
     }
 }

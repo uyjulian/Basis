@@ -264,21 +264,21 @@ namespace Basis.Scripts.Drivers
                 bone.TposeLocal.position = bone.OutGoingData.position;
             }
         }
-        public void SetAndCreateLock(BaseBoneDriver BaseBoneDriver, BasisBoneTrackedRole TargetBone, BasisBoneTrackedRole AssignedTo, float PositionLerpAmount, float QuaternionLerpAmount, bool CreateLocks = true,bool CaresAboutX = false)
+        public void SetAndCreateLock(BaseBoneDriver BaseBoneDriver, BasisBoneTrackedRole LockToBoneRole, BasisBoneTrackedRole AssignedTo, float PositionLerpAmount, float QuaternionLerpAmount, bool CreateLocks = true,bool CaresAboutX = false)
         {
             if (CreateLocks)
             {
 
-                if (BaseBoneDriver.FindBone(out BasisBoneControl AddToBone, AssignedTo) == false)
+                if (BaseBoneDriver.FindBone(out BasisBoneControl AssignedToAddToBone, AssignedTo) == false)
                 {
                     Debug.LogError("Cant Find Bone " + AssignedTo);
                 }
-                if (BaseBoneDriver.FindBone(out BasisBoneControl LockToBone, TargetBone) == false)
+                if (BaseBoneDriver.FindBone(out BasisBoneControl LockToBone, LockToBoneRole) == false)
                 {
-                    Debug.LogError("Cant Find Bone " + TargetBone);
+                    Debug.LogError("Cant Find Bone " + LockToBoneRole);
                 }
-                BaseBoneDriver.CreatePositionalLock(AddToBone, LockToBone, PositionLerpAmount, CaresAboutX);
-                BaseBoneDriver.CreateRotationalLock(AddToBone, LockToBone, QuaternionLerpAmount);
+                BaseBoneDriver.CreatePositionalLock(AssignedToAddToBone, LockToBone, PositionLerpAmount, CaresAboutX);
+                BaseBoneDriver.CreateRotationalLock(AssignedToAddToBone, LockToBone, QuaternionLerpAmount);
             }
         }
         public void FindSkinnedMeshRenders()

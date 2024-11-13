@@ -4,7 +4,7 @@ using Unity.Mathematics;
 using UnityEngine;
 
 [System.Serializable]
-public class BasisVirtualSpineDriver
+public class BasisDesktopVirtualSpineDriver
 {
     [SerializeField] public BasisBoneControl Head;
     [SerializeField] public BasisBoneControl Neck;
@@ -125,16 +125,17 @@ public class BasisVirtualSpineDriver
         float deltaTime = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
         NeckRotationControl(deltaTime);
-        ApplyPositionControlLockY(Neck);
 
-        ChestRotationControl(deltaTime);
-        ApplyPositionControl(Chest);
 
-        SpineRotationControl(deltaTime);
-        ApplyPositionControl(Spine);
+        Quaternion HipstargetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * HipsRotationSpeed);
+        Hips.OutGoingData.rotation = UpdateRotationLockX(HipstargetRotation, HipsXRotationMin, HipsXRotationMax, deltaTime);
 
-        HipsRotationControl(deltaTime);
-        ApplyPositionControl(Hips);
+
+        Quaternion targetRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * ChestRotationSpeed);
+        Chest.OutGoingData.rotation = UpdateRotationLockX(targetRotation, ChestXRotationMin, ChestXRotationMax, deltaTime);
+
+        Quaternion SpinetargetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, deltaTime * SpineRotationSpeed);
+        Spine.OutGoingData.rotation = UpdateRotationLockX(SpinetargetRotation, SpineXRotationMin, SpineXRotationMax, deltaTime);
     }
 
     // Define rotation limits for x Euler angle
@@ -146,76 +147,29 @@ public class BasisVirtualSpineDriver
     public float SpineXRotationMax = 20f;
     public float HipsXRotationMin = -1;
     public float HipsXRotationMax = 1;
+    public float PositionUpdateSpeed = 12;
 
     private void NeckRotationControl(float deltaTime)
     {
-        // Smoothly interpolate neck rotation based on Head's outgoing data and rotation speed
         Quaternion targetRotation = Quaternion.Slerp(Neck.OutGoingData.rotation, Head.OutGoingData.rotation, deltaTime * NeckRotationSpeed);
-        Neck.OutGoingData.rotation = UpdateRotationLockX(targetRotation, NeckXRotationMin, NeckXRotationMax);
+        Neck.OutGoingData.rotation = UpdateRotationLockX(targetRotation, NeckXRotationMin, NeckXRotationMax, deltaTime);
+
+        float3 offset = Neck.PositionControl.Offset;
+        float3 customDirection = math.mul(Neck.PositionControl.Target.OutGoingData.rotation, offset);
+
+        float3 targetPosition = Neck.PositionControl.Target.OutGoingData.position + customDirection;
+        Neck.OutGoingData.position = Vector3.Lerp(Neck.OutGoingData.position, targetPosition, deltaTime * PositionUpdateSpeed); // Smooth interpolation
     }
 
-    private void ChestRotationControl(float deltaTime)
-    {
-        // Smoothly interpolate chest rotation based on Neck's outgoing data and rotation speed
-        Quaternion targetRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * ChestRotationSpeed);
-        Chest.OutGoingData.rotation = UpdateRotationLockX(targetRotation, ChestXRotationMin, ChestXRotationMax);
-    }
-
-    private void SpineRotationControl(float deltaTime)
-    {
-        // Smoothly interpolate spine rotation based on Chest's outgoing data and rotation speed
-        Quaternion targetRotation = Quaternion.Slerp(Spine.OutGoingData.rotation, Chest.OutGoingData.rotation, deltaTime * SpineRotationSpeed);
-        Spine.OutGoingData.rotation = UpdateRotationLockX(targetRotation, SpineXRotationMin, SpineXRotationMax);
-    }
-
-    private void HipsRotationControl(float deltaTime)
-    {
-        // Smoothly interpolate hips rotation based on Spine's outgoing data and rotation speed
-        Quaternion targetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Spine.OutGoingData.rotation, deltaTime * HipsRotationSpeed);
-        Hips.OutGoingData.rotation = UpdateRotationLockX(targetRotation, HipsXRotationMin, HipsXRotationMax);
-    }
-
-    public Quaternion UpdateRotationLockX(Quaternion currentRotation, float XRotationMin, float XRotationMax)
+    public Quaternion UpdateRotationLockX(Quaternion currentRotation, float XRotationMin, float XRotationMax, float deltaTime)
     {
         Vector3 currentEuler = currentRotation.eulerAngles;
-
-        // Wrap Euler angles to the -180 to 180 range to avoid abrupt transitions
         currentEuler.x = (currentEuler.x > 180) ? currentEuler.x - 360 : currentEuler.x;
 
-        // Smoothly clamp X rotation by interpolating to the clamped range
         float clampedX = Mathf.Clamp(currentEuler.x, XRotationMin, XRotationMax);
         Vector3 targetEuler = new Vector3(clampedX, currentEuler.y, currentEuler.z);
 
-        // Interpolate smoothly towards the clamped target rotation to reduce jitter
         Quaternion targetRotation = Quaternion.Euler(targetEuler);
-        return Quaternion.Slerp(currentRotation, targetRotation, 0.1f); // Adjust smoothing factor as needed
-    }
-    private void ApplyPositionControl(BasisBoneControl boneControl)
-    {
-        if (boneControl.PositionControl.HasTarget)
-        {
-            // Convert Offset to float3
-            float3 offset = boneControl.PositionControl.Offset;
-
-            // Use math.mul to apply the quaternion rotation to the offset vector
-            float3 customDirection = math.mul(boneControl.PositionControl.Target.OutGoingData.rotation, offset);
-
-            // Calculate the final position by adding the customDirection to the target position
-            boneControl.OutGoingData.position = boneControl.PositionControl.Target.OutGoingData.position + customDirection;
-        }
-    }
-    private void ApplyPositionControlLockY(BasisBoneControl boneControl)
-    {
-        if (boneControl.PositionControl.HasTarget)
-        {
-            // Convert Offset to float3
-            float3 offset = boneControl.PositionControl.Offset;
-
-            // Use math.mul to apply the quaternion rotation to the offset vector
-            Quaternion Rotation = boneControl.PositionControl.Target.OutGoingData.rotation;
-
-            // Calculate the final position by adding the customDirection to the target position
-            boneControl.OutGoingData.position = boneControl.TposeLocal.position - offset;
-        }
+        return Quaternion.Slerp(currentRotation, targetRotation, deltaTime * 5f); // Adjusted for smoothness
     }
 }
