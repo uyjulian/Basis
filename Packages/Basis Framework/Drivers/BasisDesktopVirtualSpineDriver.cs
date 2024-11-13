@@ -6,6 +6,7 @@ using UnityEngine;
 [System.Serializable]
 public class BasisDesktopVirtualSpineDriver
 {
+    [SerializeField] public BasisBoneControl CenterEye;
     [SerializeField] public BasisBoneControl Head;
     [SerializeField] public BasisBoneControl Neck;
     [SerializeField] public BasisBoneControl Chest;
@@ -28,22 +29,25 @@ public class BasisDesktopVirtualSpineDriver
     [SerializeField] public BasisBoneControl RightFoot;
 
     // Define influence values (from 0 to 1)
-    public float NeckRotationSpeed = 6;
-    public float SpineRotationSpeed = 4;
-    public float ChestRotationSpeed = 4;
-    public float HipsRotationSpeed = 8;
-    public float HipsInfluence = 0.5f;
-    public float MiddlePointsLerpFactor = 0.5f;
+    public float HeadRotationSpeed = 12;
+    public float NeckRotationSpeed = 12;
+    public float SpineRotationSpeed = 12;
+    public float ChestRotationSpeed = 2;
+    public float HipsRotationSpeed = 12;
     public void Initialize()
     {
+        if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out CenterEye, BasisBoneTrackedRole.CenterEye))
+        {
+        }
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out Head, BasisBoneTrackedRole.Head))
         {
+            Head.HasVirtualOverride = true;
+            Head.VirtualRun += OnSimulateHead;
         }
 
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out Neck, BasisBoneTrackedRole.Neck))
         {
             Neck.HasVirtualOverride = true;
-            Neck.VirtualRun += OnSimulateNeck;
         }
         if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out Chest, BasisBoneTrackedRole.Chest))
         {
@@ -113,55 +117,49 @@ public class BasisDesktopVirtualSpineDriver
     }
     public void DeInitialize()
     {
-        Neck.VirtualRun -= OnSimulateNeck;
+        Neck.VirtualRun -= OnSimulateHead;
         Neck.HasVirtualOverride = false;
         Chest.HasVirtualOverride = false;
         Hips.HasVirtualOverride = false;
     }
-    public float JointSpeedup = 10f;
-    public float SmoothTime = 0.1f; // Adjust for smoother damping
-    public void OnSimulateNeck()
+    public void OnSimulateHead()
     {
         float deltaTime = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
-        NeckRotationControl(deltaTime);
+        float RotSpeed = deltaTime * HeadRotationSpeed;
+        Quaternion HeadtargetRotation = Quaternion.Slerp(Head.OutGoingData.rotation, CenterEye.OutGoingData.rotation, RotSpeed);
+        Head.OutGoingData.rotation = UpdateRotationLockX(HeadtargetRotation, HeadXRotationMin, HeadXRotationMax, RotSpeed);
 
+        RotSpeed = deltaTime * NeckRotationSpeed;
+        Quaternion NecktargetRotation = Quaternion.Slerp(Neck.OutGoingData.rotation, Head.OutGoingData.rotation, RotSpeed);
+        Neck.OutGoingData.rotation = UpdateRotationLockX(NecktargetRotation, NeckXRotationMin, NeckXRotationMax, RotSpeed);
 
-        Quaternion HipstargetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * HipsRotationSpeed);
-        Hips.OutGoingData.rotation = UpdateRotationLockX(HipstargetRotation, HipsXRotationMin, HipsXRotationMax, deltaTime);
+        RotSpeed = deltaTime * HipsRotationSpeed;
+        Quaternion HipstargetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Neck.OutGoingData.rotation, RotSpeed);
+        Hips.OutGoingData.rotation = UpdateRotationLockX(HipstargetRotation, HipsXRotationMin, HipsXRotationMax, RotSpeed);
 
+        RotSpeed = deltaTime * ChestRotationSpeed;
+        Quaternion ChesttargetRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, RotSpeed);
+        Chest.OutGoingData.rotation = UpdateRotationLockX(ChesttargetRotation, ChestXRotationMin, ChestXRotationMax, RotSpeed);
 
-        Quaternion targetRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * ChestRotationSpeed);
-        Chest.OutGoingData.rotation = UpdateRotationLockX(targetRotation, ChestXRotationMin, ChestXRotationMax, deltaTime);
-
-        Quaternion SpinetargetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, deltaTime * SpineRotationSpeed);
-        Spine.OutGoingData.rotation = UpdateRotationLockX(SpinetargetRotation, SpineXRotationMin, SpineXRotationMax, deltaTime);
+        RotSpeed = deltaTime * SpineRotationSpeed;
+        Quaternion SpinetargetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Chest.OutGoingData.rotation, RotSpeed);
+        Spine.OutGoingData.rotation = UpdateRotationLockX(SpinetargetRotation, SpineXRotationMin, SpineXRotationMax, RotSpeed);
     }
 
     // Define rotation limits for x Euler angle
-    public float NeckXRotationMin = -30f;
-    public float NeckXRotationMax = 5;
-    public float ChestXRotationMin = -20f;
-    public float ChestXRotationMax = 20f;
-    public float SpineXRotationMin = -20f;
-    public float SpineXRotationMax = 20f;
-    public float HipsXRotationMin = -1;
-    public float HipsXRotationMax = 1;
+    public float HeadXRotationMin = 0;
+    public float HeadXRotationMax = 0;
+    public float NeckXRotationMin = 0;
+    public float NeckXRotationMax = 0;
+    public float ChestXRotationMin = 0;
+    public float ChestXRotationMax = 0;
+    public float SpineXRotationMin = 0;
+    public float SpineXRotationMax = 0;
+    public float HipsXRotationMin = 0;
+    public float HipsXRotationMax = 0;
     public float PositionUpdateSpeed = 12;
-
-    private void NeckRotationControl(float deltaTime)
-    {
-        Quaternion targetRotation = Quaternion.Slerp(Neck.OutGoingData.rotation, Head.OutGoingData.rotation, deltaTime * NeckRotationSpeed);
-        Neck.OutGoingData.rotation = UpdateRotationLockX(targetRotation, NeckXRotationMin, NeckXRotationMax, deltaTime);
-
-        float3 offset = Neck.PositionControl.Offset;
-        float3 customDirection = math.mul(Neck.PositionControl.Target.OutGoingData.rotation, offset);
-
-        float3 targetPosition = Neck.PositionControl.Target.OutGoingData.position + customDirection;
-        Neck.OutGoingData.position = Vector3.Lerp(Neck.OutGoingData.position, targetPosition, deltaTime * PositionUpdateSpeed); // Smooth interpolation
-    }
-
-    public Quaternion UpdateRotationLockX(Quaternion currentRotation, float XRotationMin, float XRotationMax, float deltaTime)
+    public Quaternion UpdateRotationLockX(Quaternion currentRotation, float XRotationMin, float XRotationMax, float MultipliedDeltaTime)
     {
         Vector3 currentEuler = currentRotation.eulerAngles;
         currentEuler.x = (currentEuler.x > 180) ? currentEuler.x - 360 : currentEuler.x;
@@ -170,6 +168,6 @@ public class BasisDesktopVirtualSpineDriver
         Vector3 targetEuler = new Vector3(clampedX, currentEuler.y, currentEuler.z);
 
         Quaternion targetRotation = Quaternion.Euler(targetEuler);
-        return Quaternion.Slerp(currentRotation, targetRotation, deltaTime * 5f); // Adjusted for smoothness
+        return Quaternion.Slerp(currentRotation, targetRotation, MultipliedDeltaTime); // Adjusted for smoothness
     }
 }
