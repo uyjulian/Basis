@@ -32,9 +32,6 @@ public class BasisVirtualSpineDriver
     public float SpineRotationSpeed = 4;
     public float ChestRotationSpeed = 4;
     public float HipsRotationSpeed = 8;
-    public float MaxNeckAngle = 0; // Limit the neck's rotation range to avoid extreme twisting
-    public float MaxChestAngle = 0; // Limit the chest's rotation range
-    public float MaxHipsAngle = 15; // Limit the hips' rotation range
     public float HipsInfluence = 0.5f;
     public float MiddlePointsLerpFactor = 0.5f;
     public void Initialize()
@@ -127,89 +124,72 @@ public class BasisVirtualSpineDriver
     {
         float deltaTime = BasisLocalPlayer.Instance.LocalBoneDriver.DeltaTime;
 
-        SyncPelvisRotationWithHead(deltaTime);
-        SmoothNeckRotationTowardsTarget(deltaTime);
-        ApplyChestRotationWithReducedInfluence(deltaTime);
-        ApplySpineRotationWithReducedInfluence(deltaTime);
-        ApplyProgressiveHipsInfluence(deltaTime);
-
+        NeckRotationControl(deltaTime);
         ApplyPositionControlLockY(Neck);
+
+        ChestRotationControl(deltaTime);
         ApplyPositionControl(Chest);
+
+        SpineRotationControl(deltaTime);
         ApplyPositionControl(Spine);
+
+        HipsRotationControl(deltaTime);
         ApplyPositionControl(Hips);
     }
 
     // Define rotation limits for x Euler angle
-    public float PelvisXRotationMin = -0;
-    public float PelvisXRotationMax = 0;
     public float NeckXRotationMin = -30f;
     public float NeckXRotationMax = 5;
     public float ChestXRotationMin = -20f;
     public float ChestXRotationMax = 20f;
     public float SpineXRotationMin = -20f;
     public float SpineXRotationMax = 20f;
+    public float HipsXRotationMin = -1;
+    public float HipsXRotationMax = 1;
 
-    private void SyncPelvisRotationWithHead(float deltaTime)
+    private void NeckRotationControl(float deltaTime)
     {
-        // Sync pelvis Y rotation to head Y rotation, keeping X and Z intact
-        Quaternion hipsRotationConverted = Hips.OutGoingData.rotation;
-        Vector3 pelvisRotationEuler = hipsRotationConverted.eulerAngles;
-        Quaternion headRotation = Head.OutGoingData.rotation;
-
-        // Clamp X rotation within defined limits
-        float clampedX = Mathf.Clamp(pelvisRotationEuler.x, PelvisXRotationMin, PelvisXRotationMax);
-        Quaternion targetHipsRotation = Quaternion.Euler(clampedX, headRotation.eulerAngles.y, pelvisRotationEuler.z);
-
-        Hips.OutGoingData.rotation = Quaternion.Slerp(Hips.OutGoingData.rotation, targetHipsRotation, deltaTime * HipsRotationSpeed);
+        // Smoothly interpolate neck rotation based on Head's outgoing data and rotation speed
+        Quaternion targetRotation = Quaternion.Slerp(Neck.OutGoingData.rotation, Head.OutGoingData.rotation, deltaTime * NeckRotationSpeed);
+        Neck.OutGoingData.rotation = UpdateRotationLockX(targetRotation, NeckXRotationMin, NeckXRotationMax);
     }
 
-    private void SmoothNeckRotationTowardsTarget(float deltaTime)
+    private void ChestRotationControl(float deltaTime)
     {
-        // Calculate target rotation for neck, applying curve instead of clamp for smooth pitch control
-        Quaternion headRotationConverted = Head.OutGoingData.rotation;
-        Vector3 headEuler = headRotationConverted.eulerAngles;
-
-        // Clamp X rotation within defined limits
-        float clampedX = Mathf.Clamp(headEuler.x, NeckXRotationMin, NeckXRotationMax);
-        Quaternion targetNeckRotation = Quaternion.Euler(clampedX, headEuler.y, 0);
-
-        // Smooth neck rotation towards target with adjusted pitch
-        Neck.OutGoingData.rotation = Quaternion.Slerp(Neck.OutGoingData.rotation, targetNeckRotation, deltaTime * NeckRotationSpeed);
+        // Smoothly interpolate chest rotation based on Neck's outgoing data and rotation speed
+        Quaternion targetRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * ChestRotationSpeed);
+        Chest.OutGoingData.rotation = UpdateRotationLockX(targetRotation, ChestXRotationMin, ChestXRotationMax);
     }
 
-    private void ApplyChestRotationWithReducedInfluence(float deltaTime)
+    private void SpineRotationControl(float deltaTime)
     {
-        // Apply progressive rotation from neck to chest with reduced influence using chest pitch curve
-        Quaternion smoothedChestRotation = Quaternion.Slerp(Chest.OutGoingData.rotation, Neck.OutGoingData.rotation, deltaTime * ChestRotationSpeed);
-        Vector3 chestEuler = smoothedChestRotation.eulerAngles;
-
-        // Clamp X rotation within defined limits
-        float clampedX = Mathf.Clamp(chestEuler.x, ChestXRotationMin, ChestXRotationMax);
-        Chest.OutGoingData.rotation = Quaternion.Euler(clampedX, chestEuler.y, 0);
+        // Smoothly interpolate spine rotation based on Chest's outgoing data and rotation speed
+        Quaternion targetRotation = Quaternion.Slerp(Spine.OutGoingData.rotation, Chest.OutGoingData.rotation, deltaTime * SpineRotationSpeed);
+        Spine.OutGoingData.rotation = UpdateRotationLockX(targetRotation, SpineXRotationMin, SpineXRotationMax);
     }
 
-    private void ApplySpineRotationWithReducedInfluence(float deltaTime)
+    private void HipsRotationControl(float deltaTime)
     {
-        // Apply progressive rotation from neck to chest with reduced influence using chest pitch curve
-        Quaternion smoothedChestRotation = Quaternion.Slerp(Spine.OutGoingData.rotation, Chest.OutGoingData.rotation, deltaTime * SpineRotationSpeed);
-        Vector3 spineEuler = smoothedChestRotation.eulerAngles;
-
-        // Clamp X rotation within defined limits
-        float clampedX = Mathf.Clamp(spineEuler.x, SpineXRotationMin, SpineXRotationMax);
-        Spine.OutGoingData.rotation = Quaternion.Euler(clampedX, spineEuler.y, 0);
+        // Smoothly interpolate hips rotation based on Spine's outgoing data and rotation speed
+        Quaternion targetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Spine.OutGoingData.rotation, deltaTime * HipsRotationSpeed);
+        Hips.OutGoingData.rotation = UpdateRotationLockX(targetRotation, HipsXRotationMin, HipsXRotationMax);
     }
 
-    private void ApplyProgressiveHipsInfluence(float deltaTime)
+    public Quaternion UpdateRotationLockX(Quaternion currentRotation, float XRotationMin, float XRotationMax)
     {
-        // Apply progressive influence from chest to hips
-        Quaternion targetRotation = Quaternion.Slerp(Hips.OutGoingData.rotation, Spine.OutGoingData.rotation, deltaTime * HipsInfluence);
-        Vector3 hipsEuler = targetRotation.eulerAngles;
+        Vector3 currentEuler = currentRotation.eulerAngles;
 
-        // Clamp X rotation within defined limits
-        float clampedX = Mathf.Clamp(hipsEuler.x, PelvisXRotationMin, PelvisXRotationMax);
-        Hips.OutGoingData.rotation = Quaternion.Euler(clampedX, hipsEuler.y, hipsEuler.z);
+        // Wrap Euler angles to the -180 to 180 range to avoid abrupt transitions
+        currentEuler.x = (currentEuler.x > 180) ? currentEuler.x - 360 : currentEuler.x;
+
+        // Smoothly clamp X rotation by interpolating to the clamped range
+        float clampedX = Mathf.Clamp(currentEuler.x, XRotationMin, XRotationMax);
+        Vector3 targetEuler = new Vector3(clampedX, currentEuler.y, currentEuler.z);
+
+        // Interpolate smoothly towards the clamped target rotation to reduce jitter
+        Quaternion targetRotation = Quaternion.Euler(targetEuler);
+        return Quaternion.Slerp(currentRotation, targetRotation, 0.1f); // Adjust smoothing factor as needed
     }
-
     private void ApplyPositionControl(BasisBoneControl boneControl)
     {
         if (boneControl.PositionControl.HasTarget)
@@ -233,13 +213,9 @@ public class BasisVirtualSpineDriver
 
             // Use math.mul to apply the quaternion rotation to the offset vector
             Quaternion Rotation = boneControl.PositionControl.Target.OutGoingData.rotation;
-            Vector3 Euler = Rotation.eulerAngles;
-            //   Euler.y = 0;
-            Euler.y = 0;
-            float3 customDirection = math.mul(Quaternion.Euler(Euler), offset);
 
             // Calculate the final position by adding the customDirection to the target position
-            boneControl.OutGoingData.position = boneControl.PositionControl.Target.OutGoingData.position + customDirection;
+            boneControl.OutGoingData.position = boneControl.TposeLocal.position - offset;
         }
     }
 }

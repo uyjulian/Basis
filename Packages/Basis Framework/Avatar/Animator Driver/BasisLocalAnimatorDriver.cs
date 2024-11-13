@@ -165,7 +165,11 @@ namespace Basis.Scripts.Animator_Driver
             outputPosition = Vector3.Lerp(differenceHead, hipsDifference, 0.5f);
 
             hipsDifferenceQ = Hips.OutGoingData.rotation;
-            animator.transform.SetLocalPositionAndRotation(outputPosition, hipsDifferenceQ);
+           Vector3 HipsEuler = hipsDifferenceQ.eulerAngles;
+            HipsEuler.z = 0;
+            HipsEuler.x = 0;
+           Quaternion Rot = Quaternion.Euler(HipsEuler);
+            animator.transform.SetLocalPositionAndRotation(outputPosition, Rot);
         }
         public void AssignHipsFBTracker()
         {
