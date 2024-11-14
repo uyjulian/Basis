@@ -267,7 +267,7 @@ namespace Basis.Scripts.Drivers
                         Gizmos.Sphere(BonePosition, DefaultGizmoSize * BasisLocalPlayer.Instance.EyeRatioAvatarToAvatarDefaultScale, Control.Color);
                     }
                 }
-                if (BasisLocalPlayer.Instance.AvatarDriver.InTPose)
+                if (BasisLocalPlayer.Instance.AvatarDriver.CurrentlyTposing)
                 {
                     if (BasisLocalPlayer.Instance.LocalBoneDriver.FindTrackedRole(Control, out BasisBoneTrackedRole role))
                     {

@@ -3,6 +3,7 @@ using Basis.Scripts.BasisSdk.Helpers;
 using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.Eye_Follow;
 using Basis.Scripts.TransformBinders.BoneControl;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -72,6 +73,7 @@ namespace Basis.Scripts.Drivers
             }
             else
             {
+                new Exception("Unable to Initalize Local Avatar ");
                 return;
             }
             CleanupBeforeContinue();
@@ -91,8 +93,8 @@ namespace Basis.Scripts.Drivers
             }
             Builder = BasisHelpers.GetOrAddComponent<RigBuilder>(Player.Avatar.Animator.gameObject);
             Calibration(Player.Avatar);
-            BasisLocalPlayer.Instance.LocalBoneDriver.RemoveAllListeners();
-            BasisLocalPlayer.Instance.LocalBoneDriver.CalculateHeading();
+            Player.LocalBoneDriver.RemoveAllListeners();
+            Player.LocalBoneDriver.CalculateHeading();
             BasisLocalEyeFollowDriver = BasisHelpers.GetOrAddComponent<BasisLocalEyeFollowDriver>(Player.Avatar.gameObject);
             BasisLocalEyeFollowDriver.Initalize(this);
             HeadScaledDown = Vector3.zero;
@@ -109,29 +111,25 @@ namespace Basis.Scripts.Drivers
             SetBodySettings(LocalDriver);
             CalculateTransformPositions(Player.Avatar.Animator, LocalDriver);
             ComputeOffsets(LocalDriver);
-            CalibrationComplete?.Invoke();
 
             BasisMuscleDriver = BasisHelpers.GetOrAddComponent<BasisMuscleDriver>(Player.Avatar.Animator.gameObject);
             BasisMuscleDriver.Initialize(this, Player.Avatar.Animator);
 
-            AnimatorDriver = BasisHelpers.GetOrAddComponent<BasisLocalAnimatorDriver>(Player.Avatar.Animator.gameObject);
-            AnimatorDriver.Initialize(Player.Avatar.Animator);
-
             ResetAvatarAnimator();
 
-            if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out BasisBoneControl Head, BasisBoneTrackedRole.Head))
+            if (Player.LocalBoneDriver.FindBone(out BasisBoneControl Head, BasisBoneTrackedRole.Head))
             {
                 Head.HasRigLayer = BasisHasRigLayer.HasRigLayer;
             }
-            if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out BasisBoneControl Hips, BasisBoneTrackedRole.Hips))
+            if (Player.LocalBoneDriver.FindBone(out BasisBoneControl Hips, BasisBoneTrackedRole.Hips))
             {
                 Hips.HasRigLayer = BasisHasRigLayer.HasRigLayer;
             }
-            if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out BasisBoneControl Chest, BasisBoneTrackedRole.Chest))
+            if (Player.LocalBoneDriver.FindBone(out BasisBoneControl Chest, BasisBoneTrackedRole.Chest))
             {
                 Chest.HasRigLayer = BasisHasRigLayer.HasRigLayer;
             }
-            if (BasisLocalPlayer.Instance.LocalBoneDriver.FindBone(out BasisBoneControl Spine, BasisBoneTrackedRole.Spine))
+            if (Player.LocalBoneDriver.FindBone(out BasisBoneControl Spine, BasisBoneTrackedRole.Spine))
             {
                 Spine.HasRigLayer = BasisHasRigLayer.HasRigLayer;
             }
@@ -140,17 +138,21 @@ namespace Basis.Scripts.Drivers
                 TposeStateChange += OnTpose;
                 HasTposeEvent = true;
             }
-            Player.Avatar.transform.parent = BasisLocalPlayer.Instance.transform;
+            Player.Avatar.transform.parent = Player.transform;
             Player.Avatar.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-            BasisLocalPlayer.Instance.LocalBoneDriver.CalibrateOffsets();
+            Player.LocalBoneDriver.CalibrateOffsets();
             BuildBuilder();
+
+            AnimatorDriver = BasisHelpers.GetOrAddComponent<BasisLocalAnimatorDriver>(Player.Avatar.Animator.gameObject);
+            AnimatorDriver.Initialize(Player.Avatar.Animator);
+            CalibrationComplete?.Invoke();
+        }
+        public void BuildBuilder()
+        {
             if (Builder.enabled == false)
             {
                 Builder.enabled = true;
             }
-        }
-        public void BuildBuilder()
-        {
             if (Builder.Build())
             {
 
@@ -164,11 +166,12 @@ namespace Basis.Scripts.Drivers
         {
             if (Builder != null)
             {
-                if (InTPose)
+                foreach (RigLayer Layer in Builder.layers)
                 {
-                }
-                else
-                {
+                    if (CurrentlyTposing)
+                    {
+                        Layer.active = false;
+                    }
                 }
             }
         }
@@ -223,10 +226,16 @@ namespace Basis.Scripts.Drivers
         }
         public void ComputeOffsets(BaseBoneDriver BaseBoneDriver)
         {
+            string OutputString = string.Empty;
+            foreach(BasisBoneControl Bone in BaseBoneDriver.Controls)
+            {
+                Bone.OutGoingData.rotation = Quaternion.identity;
+                OutputString += Bone.Name + " |Pos| " + Bone.OutGoingData.position + " |Rot| " + Bone.OutGoingData.rotation;
+            }
+            Debug.Log(OutputString);
             //head
             SetAndCreateLock(BaseBoneDriver, BasisBoneTrackedRole.CenterEye, BasisBoneTrackedRole.Head, 40, 35, true,false);
             SetAndCreateLock(BaseBoneDriver, BasisBoneTrackedRole.Head, BasisBoneTrackedRole.Neck, 40, 35, true, false);
-
             SetAndCreateLock(BaseBoneDriver, BasisBoneTrackedRole.Head, BasisBoneTrackedRole.Mouth, 40, 30, true, false);
 
 
@@ -347,7 +356,7 @@ namespace Basis.Scripts.Drivers
         private void SetupHeadRig(BasisLocalBoneDriver driver)
         {
             GameObject HeadRig = CreateRig("Chest, Neck, Head", true, out RigHeadRig, out RigHeadLayer);
-            CreateTwoBone(driver, HeadRig, References.chest, References.neck, References.head, BasisBoneTrackedRole.Head, BasisBoneTrackedRole.Neck, true, out HeadTwoBoneIK, false, true);
+            CreateTwoBone(driver, HeadRig, References.chest, References.neck, References.head, BasisBoneTrackedRole.Head, BasisBoneTrackedRole.Neck, true, out HeadTwoBoneIK,true, true);
 
             List<BasisBoneControl> controls = new List<BasisBoneControl>();
             if (driver.FindBone(out BasisBoneControl Chest, BasisBoneTrackedRole.Head))
@@ -367,7 +376,7 @@ namespace Basis.Scripts.Drivers
         private void SetupRightShoulderRig(BasisLocalBoneDriver driver)
         {
             GameObject RightShoulder = CreateRig("Chest, RightShoulder, RightUpperArm", true, out RightShoulderRig, out RightShoulderLayer);
-            CreateTwoBone(driver, RightShoulder, References.chest, References.RightShoulder, References.RightUpperArm, BasisBoneTrackedRole.RightUpperArm, BasisBoneTrackedRole.RightShoulder, true, out RightShoulderTwoBoneIK, false, true);
+            CreateTwoBone(driver, RightShoulder, References.chest, References.RightShoulder, References.RightUpperArm, BasisBoneTrackedRole.RightUpperArm, BasisBoneTrackedRole.RightShoulder, true, out RightShoulderTwoBoneIK, true, true);
 
             List<BasisBoneControl> controls = new List<BasisBoneControl>();
             if (driver.FindBone(out BasisBoneControl RightShoulderRole, BasisBoneTrackedRole.RightShoulder))
@@ -387,7 +396,7 @@ namespace Basis.Scripts.Drivers
         private void SetupLeftShoulderRig(BasisLocalBoneDriver driver)
         {
             GameObject LeftShoulder = CreateRig("Chest, LeftShoulder, LeftUpperArm", true, out LeftShoulderRig, out LeftShoulderLayer);
-            CreateTwoBone(driver, LeftShoulder, References.chest, References.leftShoulder, References.leftUpperArm, BasisBoneTrackedRole.LeftUpperArm, BasisBoneTrackedRole.LeftShoulder, true, out LeftShoulderTwoBoneIK, false, true);
+            CreateTwoBone(driver, LeftShoulder, References.chest, References.leftShoulder, References.leftUpperArm, BasisBoneTrackedRole.LeftUpperArm, BasisBoneTrackedRole.LeftShoulder, true, out LeftShoulderTwoBoneIK, true, true);
 
             List<BasisBoneControl> controls = new List<BasisBoneControl>();
             if (driver.FindBone(out BasisBoneControl LeftShoulderRole, BasisBoneTrackedRole.LeftShoulder))
@@ -433,7 +442,7 @@ namespace Basis.Scripts.Drivers
                 controls.Add(LeftLowerArm);
             }
             WriteUpEvents(controls, LeftHandLayer);
-            CreateTwoBone(driver, Hands, References.leftUpperArm, References.leftLowerArm, References.leftHand, BasisBoneTrackedRole.LeftHand, BasisBoneTrackedRole.LeftLowerArm, true, out LeftHandTwoBoneIK, false, true);
+            CreateTwoBone(driver, Hands, References.leftUpperArm, References.leftLowerArm, References.leftHand, BasisBoneTrackedRole.LeftHand, BasisBoneTrackedRole.LeftLowerArm, true, out LeftHandTwoBoneIK, true, true);
         }
         public void RightHand(BasisLocalBoneDriver driver)
         {
@@ -448,7 +457,7 @@ namespace Basis.Scripts.Drivers
                 controls.Add(RightLowerArm);
             }
             WriteUpEvents(controls, RightHandLayer);
-            CreateTwoBone(driver, Hands, References.RightUpperArm, References.RightLowerArm, References.rightHand, BasisBoneTrackedRole.RightHand, BasisBoneTrackedRole.RightLowerArm, true, out RightHandTwoBoneIK, false, true);
+            CreateTwoBone(driver, Hands, References.RightUpperArm, References.RightLowerArm, References.rightHand, BasisBoneTrackedRole.RightHand, BasisBoneTrackedRole.RightLowerArm, true, out RightHandTwoBoneIK, true, true);
         }
         public void LeftFoot(BasisLocalBoneDriver driver)
         {
@@ -459,7 +468,7 @@ namespace Basis.Scripts.Drivers
                 controls.Add(LeftFoot);
             }
             WriteUpEvents(controls, LeftFootLayer);
-            CreateTwoBone(driver, feet, References.LeftUpperLeg, References.LeftLowerLeg, References.leftFoot, BasisBoneTrackedRole.LeftFoot, BasisBoneTrackedRole.LeftLowerLeg, true, out LeftFootTwoBoneIK, false, true);
+            CreateTwoBone(driver, feet, References.LeftUpperLeg, References.LeftLowerLeg, References.leftFoot, BasisBoneTrackedRole.LeftFoot, BasisBoneTrackedRole.LeftLowerLeg, true, out LeftFootTwoBoneIK, true, true);
         }
         public void RightFoot(BasisLocalBoneDriver driver)
         {
@@ -476,7 +485,7 @@ namespace Basis.Scripts.Drivers
 
             WriteUpEvents(controls, RightFootLayer);
 
-            CreateTwoBone(driver, feet, References.RightUpperLeg, References.RightLowerLeg, References.rightFoot, BasisBoneTrackedRole.RightFoot, BasisBoneTrackedRole.RightLowerLeg, true, out RightFootTwoBoneIK, false, true);
+            CreateTwoBone(driver, feet, References.RightUpperLeg, References.RightLowerLeg, References.rightFoot, BasisBoneTrackedRole.RightFoot, BasisBoneTrackedRole.RightLowerLeg, true, out RightFootTwoBoneIK, true, true);
         }
         public void LeftToe(BasisLocalBoneDriver driver)
         {

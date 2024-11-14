@@ -133,7 +133,6 @@ public class BasisDesktopVirtualSpineDriver
         // Align pelvis Y-axis with head Y-axis while preserving X and Z axes
         Quaternion pelvisRotation = Hips.OutGoingData.rotation;
         Quaternion HeadRotation = Head.OutGoingData.rotation;
-        Debug.Log("Head " + HeadRotation);
 
         Quaternion targetPelvisRotation = Quaternion.Euler(pelvisRotation.eulerAngles.x, HeadRotation.eulerAngles.y, pelvisRotation.eulerAngles.z);
         Hips.OutGoingData.rotation = Quaternion.Slerp(Hips.OutGoingData.rotation, targetPelvisRotation, deltaTime * HipsRotationSpeed);
@@ -165,8 +164,10 @@ public class BasisDesktopVirtualSpineDriver
 
     private void ApplyPositionControl(BasisBoneControl boneControl)
     {
-        if (!boneControl.PositionControl.HasTarget) return;
-
+        if (!boneControl.PositionControl.HasTarget)
+        {
+            return;
+        }
         float3 offset = boneControl.PositionControl.Offset;
         quaternion targetRotation = boneControl.PositionControl.Target.OutGoingData.rotation;
 
@@ -176,7 +177,10 @@ public class BasisDesktopVirtualSpineDriver
     }
     private void ApplyPositionControlNeck(BasisBoneControl boneControl)
     {
-        if (!boneControl.PositionControl.HasTarget) return;
+        if (!boneControl.PositionControl.HasTarget)
+        {
+            return;
+        }
 
         float3 offset = boneControl.PositionControl.Offset;
         quaternion targetRotation = boneControl.PositionControl.Target.OutGoingData.rotation;

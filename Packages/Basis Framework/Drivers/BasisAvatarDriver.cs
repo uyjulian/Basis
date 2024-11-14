@@ -27,18 +27,16 @@ namespace Basis.Scripts.Drivers
         }
         private static string TPose = "Assets/Animator/Animated TPose.controller";
         public static string BoneData = "Assets/ScriptableObjects/BoneData.asset";
-        public Action BeginningCalibration;
         public Action CalibrationComplete;
         public Action TposeStateChange;
         public BasisTransformMapping References = new BasisTransformMapping();
         public RuntimeAnimatorController SavedruntimeAnimatorController;
         public SkinnedMeshRenderer[] SkinnedMeshRenderer;
         public BasisPlayer Player;
-        public bool InTPose = false;
+        public bool CurrentlyTposing = false;
         public bool HasEvents = false;
         public void Calibration(BasisAvatar Avatar)
         {
-            BeginningCalibration?.Invoke();
             FindSkinnedMeshRenders();
             BasisTransformMapping.AutoDetectReferences(Player.Avatar.Animator, Avatar.transform, out References);
             if (BasisFacialBlinkDriver.MeetsRequirements(Avatar))
@@ -49,7 +47,7 @@ namespace Basis.Scripts.Drivers
         }
         public void PutAvatarIntoTPose()
         {
-            InTPose = true;
+            CurrentlyTposing = true;
             if (SavedruntimeAnimatorController == null)
             {
                 SavedruntimeAnimatorController = Player.Avatar.Animator.runtimeAnimatorController;
@@ -65,7 +63,7 @@ namespace Basis.Scripts.Drivers
         {
             Player.Avatar.Animator.runtimeAnimatorController = SavedruntimeAnimatorController;
             SavedruntimeAnimatorController = null;
-            InTPose = false;
+            CurrentlyTposing = false;
             TposeStateChange?.Invoke();
         }
         public Bounds GetBounds(Transform animatorParent)
@@ -125,7 +123,7 @@ namespace Basis.Scripts.Drivers
         {
             UnityEngine.ResourceManagement.AsyncOperations.AsyncOperationHandle<BasisFallBackBoneData> BasisFallBackBoneDataAsync = Addressables.LoadAssetAsync<BasisFallBackBoneData>(BoneData);
             BasisFallBackBoneData FBBD = BasisFallBackBoneDataAsync.WaitForCompletion();
-            for (int Index = 0; Index < driver.Controls.Length; Index++)
+            for (int Index = 0; Index < driver.ControlsLength; Index++)
             {
                 BasisBoneControl Control = driver.Controls[Index];
                 if (driver.trackedRoles[Index] == BasisBoneTrackedRole.CenterEye)
