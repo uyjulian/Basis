@@ -156,6 +156,9 @@ namespace Basis.Scripts.Animator_Driver
         public float3 hipsDifference;
         public Vector3 outputPosition;
         public Quaternion hipsDifferenceQ = Quaternion.identity;
+        /// <summary>
+        /// once i fix the eye offset come back here -LD
+        /// </summary>
         public void SimulateAvatarRotation()
         {
             if (BasisLocalPlayer.Instance.AvatarDriver.CurrentlyTposing)
@@ -166,7 +169,7 @@ namespace Basis.Scripts.Animator_Driver
                 HipsEuler.z = 0;
                 HipsEuler.x = 0;
                 Quaternion Rot = Quaternion.Euler(HipsEuler);
-                animator.transform.SetLocalPositionAndRotation(differenceHead, Rot);
+                animator.transform.SetLocalPositionAndRotation(Vector3.zero, Rot);
             }
             else
             {
@@ -181,7 +184,7 @@ namespace Basis.Scripts.Animator_Driver
                 HipsEuler.z = 0;
                 HipsEuler.x = 0;
                 Quaternion Rot = Quaternion.Euler(HipsEuler);
-                animator.transform.SetLocalPositionAndRotation(outputPosition, Rot);
+                animator.transform.SetLocalPositionAndRotation(Vector3.zero, Rot);
             }
         }
         public void AssignHipsFBTracker()
