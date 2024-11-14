@@ -180,6 +180,16 @@ namespace Basis.Scripts.Drivers
                     {
                         Layer.active = false;
                     }
+                    else
+                    {
+                    }
+                }
+                if(CurrentlyTposing == false)
+                {
+                    foreach(BasisBoneControl control in BasisLocalPlayer.Instance.LocalBoneDriver.Controls)
+                    {
+                        control.OnHasRigChanged?.Invoke();
+                    }
                 }
             }
         }
