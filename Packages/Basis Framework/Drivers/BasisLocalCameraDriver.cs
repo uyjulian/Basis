@@ -57,7 +57,7 @@ namespace Basis.Scripts.Drivers
             Camera.farClipPlane = 1500;
             CameraInstanceID = Camera.GetInstanceID();
             //fire static event that says the instance exists
-            OnHeightChanged();
+            OnHeightChanged(BasisLocalPlayer.Instance.AvatarEyeHeight, BasisLocalPlayer.Instance.PlayerEyeHeight);
             if (HasEvents == false)
             {
                 MicrophoneRecorder.OnPausedAction += OnPausedEvent;
@@ -163,7 +163,7 @@ namespace Basis.Scripts.Drivers
             {
                 Camera.fieldOfView = DefaultCameraFov;
             }
-            OnHeightChanged();
+            OnHeightChanged(BasisLocalPlayer.Instance.AvatarEyeHeight, BasisLocalPlayer.Instance.PlayerEyeHeight);
         }
         public static Vector3 Forward()
         {
@@ -254,7 +254,7 @@ namespace Basis.Scripts.Drivers
                 Rotation = Quaternion.identity;
             }
         }
-        public void OnHeightChanged()
+        public void OnHeightChanged(float AvatarHeight,float PlayerHeight)
         {
             this.gameObject.transform.localScale = Vector3.one * LocalPlayer.EyeRatioAvatarToAvatarDefaultScale;
         }

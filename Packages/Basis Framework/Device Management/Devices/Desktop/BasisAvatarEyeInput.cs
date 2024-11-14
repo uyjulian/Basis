@@ -54,7 +54,7 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
             {
                 BasisLocalPlayer.Instance.OnLocalAvatarChanged += PlayerInitialized;
                 BasisLocalPlayer.Instance.OnPlayersHeightChanged += BasisLocalPlayer_OnPlayersHeightChanged;
-                BasisLocalPlayer_OnPlayersHeightChanged();
+                BasisLocalPlayer_OnPlayersHeightChanged(BasisLocalPlayer.Instance.AvatarEyeHeight, BasisLocalPlayer.Instance.PlayerEyeHeight);
                 BasisCursorManagement.OnCursorStateChange += OnCursorStateChange;
                 BasisPointRaycaster.UseWorldPosition = false;
                 BasisVirtualSpine.Initialize();
@@ -86,11 +86,13 @@ namespace Basis.Scripts.Device_Management.Devices.Desktop
             }
             base.OnDestroy();
         }
-        private void BasisLocalPlayer_OnPlayersHeightChanged()
+        private void BasisLocalPlayer_OnPlayersHeightChanged(float AvatarHeight,float PlayerHeight)
         {
-            Vector3 Pos = new Vector3(0, BasisLocalPlayer.Instance.AvatarDriver.ActiveAvatarEyeHeight(), 0);
-            BasisLocalPlayer.Instance.AvatarDriver.GetWorldSpaceRotAndPos(() => Pos, out quaternion rot, out float3 position);
-            BasisLocalPlayer.Instance.PlayerEyeHeight = -position.y;
+            //   Vector3 Pos = new Vector3(0, BasisLocalPlayer.Instance.AvatarDriver.ActiveAvatarEyeHeight(), 0);
+            //  BasisLocalPlayer.Instance.AvatarDriver.GetWorldSpaceRotAndPos(() => Pos, out quaternion rot, out float3 position);
+            //  BasisLocalPlayer.Instance.PlayerEyeHeight = -position.y;
+          // float avatarHeight = BasisLocalPlayer.Instance.AvatarDriver?.ActiveAvatarEyeHeight() ?? 0;
+            BasisLocalPlayer.Instance.PlayerEyeHeight = AvatarHeight;
         }
         public void PlayerInitialized()
         {

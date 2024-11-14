@@ -140,7 +140,6 @@ namespace Basis.Scripts.Drivers
             }
             Player.Avatar.transform.parent = Player.transform;
             Player.Avatar.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-            Player.LocalBoneDriver.CalibrateOffsets();
             BuildBuilder();
 
             AnimatorDriver = BasisHelpers.GetOrAddComponent<BasisLocalAnimatorDriver>(Player.Avatar.Animator.gameObject);
@@ -149,6 +148,10 @@ namespace Basis.Scripts.Drivers
         }
         public void BuildBuilder()
         {
+            foreach(BasisBoneControl Control in BasisLocalPlayer.Instance.LocalBoneDriver.Controls)
+            {
+                Control.BoneTransform.SetLocalPositionAndRotation(Control.OutGoingData.position,Control.OutGoingData.rotation);
+            }
             if (Builder.enabled == false)
             {
                 Builder.enabled = true;

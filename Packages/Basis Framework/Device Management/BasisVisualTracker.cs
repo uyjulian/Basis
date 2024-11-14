@@ -36,7 +36,7 @@ namespace Basis.Scripts.Device_Management
                 HasEvents = false;
             }
         }
-        public void StartWaitAndSetUILocation()
+        public void StartWaitAndSetUILocation(float Avatarheight, float PlayerHeight)
         {
             UpdateVisualSizeAndOffset();
         }

@@ -169,7 +169,7 @@ namespace Basis.Scripts.Animator_Driver
                 HipsEuler.z = 0;
                 HipsEuler.x = 0;
                 Quaternion Rot = Quaternion.Euler(HipsEuler);
-                animator.transform.SetLocalPositionAndRotation(Vector3.zero, Rot);
+                animator.transform.SetLocalPositionAndRotation(differenceHead, Rot);
             }
             else
             {
@@ -184,7 +184,7 @@ namespace Basis.Scripts.Animator_Driver
                 HipsEuler.z = 0;
                 HipsEuler.x = 0;
                 Quaternion Rot = Quaternion.Euler(HipsEuler);
-                animator.transform.SetLocalPositionAndRotation(Vector3.zero, Rot);
+                animator.transform.SetLocalPositionAndRotation(hipsDifference, Rot);
             }
         }
         public void AssignHipsFBTracker()

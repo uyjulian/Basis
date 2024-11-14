@@ -39,7 +39,7 @@ namespace Basis.Scripts.UI.UI_Panels
                 hasLocalCreationEvent = false;
             }
         }
-        public void StartWaitAndSetUILocation()
+        public void StartWaitAndSetUILocation(float AvatarHeight, float PlayerHeight)
         {
             Debug.Log("StartWaitAndSetUILocation");
             SetUILocation();

@@ -21,11 +21,12 @@ public static class BasisHeightDriver
         // Retrieve the player's eye height from the input device
         CapturePlayerHeight();
         // Retrieve the active avatar's eye height
-        float avatarHeight = basisPlayer.AvatarDriver?.ActiveAvatarEyeHeight() ?? 0;
-        Debug.Log($"Avatar eye height: {avatarHeight}, Player eye height: {basisPlayer.PlayerEyeHeight}");
+        basisPlayer.AvatarEyeHeight = basisPlayer.AvatarDriver?.ActiveAvatarEyeHeight() ?? 0;
+        Debug.Log($"Avatar eye height: {basisPlayer.AvatarEyeHeight}, Player eye height: {basisPlayer.PlayerEyeHeight}");
 
+        basisPlayer.AvatarEyeHeight += 0.1f;
         // Handle potential issues with height data
-        if (basisPlayer.PlayerEyeHeight <= 0 || avatarHeight <= 0)
+        if (basisPlayer.PlayerEyeHeight <= 0 || basisPlayer.AvatarEyeHeight <= 0)
         {
             basisPlayer.RatioPlayerToAvatarScale = 1;
             if (basisPlayer.PlayerEyeHeight <= 0)
@@ -39,16 +40,16 @@ public static class BasisHeightDriver
         else
         {
             // Calculate scaling ratios
-            basisPlayer.RatioPlayerToAvatarScale = avatarHeight / basisPlayer.PlayerEyeHeight;
+            basisPlayer.RatioPlayerToAvatarScale = basisPlayer.AvatarEyeHeight / basisPlayer.PlayerEyeHeight;
         }
 
         // Calculate other scaling ratios
-        basisPlayer.EyeRatioAvatarToAvatarDefaultScale = avatarHeight / BasisLocalPlayer.DefaultAvatarEyeHeight;
+        basisPlayer.EyeRatioAvatarToAvatarDefaultScale = basisPlayer.AvatarEyeHeight / BasisLocalPlayer.DefaultAvatarEyeHeight;
         basisPlayer.EyeRatioPlayerToDefaultScale = basisPlayer.PlayerEyeHeight / BasisLocalPlayer.DefaultPlayerEyeHeight;
 
         // Notify listeners that height recalculation is complete
         Debug.Log($"Final Player Eye Height: {basisPlayer.PlayerEyeHeight}");
-        basisPlayer.OnPlayersHeightChanged?.Invoke();
+        basisPlayer.OnPlayersHeightChanged?.Invoke(basisPlayer.AvatarEyeHeight, basisPlayer.PlayerEyeHeight);
     }
     public static void CapturePlayerHeight()
     {

@@ -64,6 +64,10 @@ namespace Basis.Scripts.UI.UI_Panels
             {
             }
         }
+        private void UpdateDelayedSetUI(float Avatarheight, float PlayerHeight)
+        {
+            StartCoroutine(DelaySetUI());
+        }
         private void UpdateDelayedSetUI()
         {
             StartCoroutine(DelaySetUI());

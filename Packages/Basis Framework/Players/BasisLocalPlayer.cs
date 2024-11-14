@@ -25,6 +25,7 @@ namespace Basis.Scripts.BasisSdk.Players
         public static float DefaultPlayerEyeHeight = 1.64f;
         public static float DefaultAvatarEyeHeight = 1.64f;
         public float PlayerEyeHeight = 1.64f;
+        public float AvatarEyeHeight = 1.64f;
         public float RatioPlayerToAvatarScale = 1f;
         public float EyeRatioPlayerToDefaultScale = 1f;
         public float EyeRatioAvatarToAvatarDefaultScale = 1f;//should be used for the player
@@ -34,7 +35,7 @@ namespace Basis.Scripts.BasisSdk.Players
         /// the bool when false is not the final size
         /// use the bool to 
         /// </summary>
-        public Action OnPlayersHeightChanged;
+        public Action<float,float> OnPlayersHeightChanged;
         public BasisLocalBoneDriver LocalBoneDriver;
         public BasisLocalAvatarDriver AvatarDriver;
     //   public BasisFootPlacementDriver FootPlacementDriver;
