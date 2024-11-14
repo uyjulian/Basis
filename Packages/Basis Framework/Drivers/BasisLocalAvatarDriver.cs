@@ -165,6 +165,11 @@ namespace Basis.Scripts.Drivers
                 Debug.LogError("Unable to Build Builder for IK!!! major issue");
             }
         }
+        /// <summary>
+        /// LD i need to do this better it cant just be layer.active = false
+        /// i need to restore it by getting it from all setup devices again.
+        /// cant just be remember unremember as the device list will change or update!
+        /// </summary>
         public void OnTpose()
         {
             if (Builder != null)
