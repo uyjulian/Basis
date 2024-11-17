@@ -1,5 +1,3 @@
-using Basis.Scripts.BasisSdk.Players;
-using Basis.Scripts.Networking.Compression;
 using Basis.Scripts.Networking.NetworkedAvatar;
 using Basis.Scripts.Networking.NetworkedPlayer;
 using DarkRift;

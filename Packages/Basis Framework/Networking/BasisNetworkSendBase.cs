@@ -33,7 +33,7 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         public List<AvatarBuffer> AvatarDataBuffer = new List<AvatarBuffer>();
         public AvatarBuffer LastAvatarBuffer;
         public HumanPose HumanPose = new HumanPose();
-        public LocalAvatarSyncMessage LASM = new LocalAvatarSyncMessage();
+        public LocalAvatarSyncMessage LASM = new LocalAvatarSyncMessage() { array = new byte[TotalArraySize] };
         public PlayerIdMessage NetworkNetID = new PlayerIdMessage();
         public BasisDataJobs AvatarJobs;
         public HumanPoseHandler PoseHandler;
@@ -43,12 +43,14 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         public BasisRangedUshortFloatData ScaleRanged;
         public double TimeAsDoubleWhenLastSync;
         public float LastAvatarDelta = 0.1f;
+
+        // Pre-allocate the buffer with total size of the components
+        public const int posScaleLength = 12 + 6; // 12 bytes for Position (3 floats) and 6 bytes for Scale (3 shorts)
+        public const int rotLength = 14; // 14 bytes for Quaternion (x, y, z, w)
+        public const int muscleLength = BasisCompressionOfMuscles.BoneLength * 4; // 4 bytes per muscle value
+        public const int TotalArraySize = posScaleLength + rotLength + muscleLength;
         protected BasisNetworkSendBase()
         {
-            LASM = new LocalAvatarSyncMessage()
-            {
-                array = new byte[212],
-            };
             PositionRanged = new BasisRangedUshortFloatData(-BasisNetworkConstants.MaxPosition, BasisNetworkConstants.MaxPosition, BasisNetworkConstants.PositionPrecision);
             ScaleRanged = new BasisRangedUshortFloatData(BasisNetworkConstants.MinimumScale, BasisNetworkConstants.MaximumScale, BasisNetworkConstants.ScalePrecision);
         }
@@ -148,6 +150,14 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
             using (var msg = Message.Create(tag, writer))
             {
                 BasisNetworkManagement.Instance.Client.SendMessage(msg, BasisNetworking.AvatarChannel, deliveryMethod);
+            }
+        }
+        public void ReSizeAndErrorIfNeeded()
+        {
+            if (LASM.array == null || LASM.array.Length != BasisNetworkSendBase.TotalArraySize)
+            {
+                LASM.array = new byte[BasisNetworkSendBase.TotalArraySize];
+                Debug.LogError("Missing LASM");
             }
         }
     }

@@ -12,6 +12,7 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         public static void DeCompress(BasisNetworkSendBase Base, ServerSideSyncPlayerMessage ServerSideSyncPlayerMessage)
         {
             Base.LASM = ServerSideSyncPlayerMessage.avatarSerialization;
+            Base.ReSizeAndErrorIfNeeded();
             AvatarBuffer AvatarBuffer = new AvatarBuffer();
             DecompressAvatar(ref AvatarBuffer, Base.LASM, Base.PositionRanged, Base.ScaleRanged);
             double TimeasDouble = Time.realtimeSinceStartupAsDouble;

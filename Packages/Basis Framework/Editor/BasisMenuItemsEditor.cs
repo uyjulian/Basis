@@ -6,6 +6,7 @@ using Basis.Scripts.Device_Management.Devices;
 using Basis.Scripts.Device_Management.Devices.Desktop;
 using Basis.Scripts.Device_Management.Devices.Simulation;
 using Basis.Scripts.Networking;
+using Basis.Scripts.Networking.NetworkedAvatar;
 using Basis.Scripts.Networking.Transmitters;
 using Basis.Scripts.Profiler;
 using Basis.Scripts.TransformBinders.BoneControl;
@@ -299,6 +300,7 @@ public static class BasisMenuItemsEditor
         if (Transmitter != null)
         {
             Debug.Log("Apply SpawnFakeRemote");
+            Transmitter.ReSizeAndErrorIfNeeded();
             serverSideSyncPlayerMessage.localReadyMessage.localAvatarSyncMessage = Transmitter.LASM;
         }
         CreateTestRemotePlayer(serverSideSyncPlayerMessage);

@@ -32,6 +32,8 @@ namespace Basis.Scripts.Networking
                 byte[] Information = BasisBundleConversionNetwork.ConvertBasisLoadableBundleToBytes(BasisLocalPlayer.AvatarMetaData);
                 BasisNetworkAvatarCompressor.Compress(NetworkedPlayer.NetworkSend, BasisLocalPlayer.Avatar.Animator);
 
+               NetworkedPlayer.NetworkSend.ReSizeAndErrorIfNeeded();
+
                 BasisNetworkManagement.Instance.readyMessage.localAvatarSyncMessage = NetworkedPlayer.NetworkSend.LASM;
                 BasisNetworkManagement.Instance.readyMessage.clientAvatarChangeMessage = new ClientAvatarChangeMessage
                 {

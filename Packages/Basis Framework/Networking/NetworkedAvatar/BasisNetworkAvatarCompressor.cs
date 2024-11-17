@@ -16,6 +16,9 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
             using (DarkRiftWriter writer = DarkRiftWriter.Create())
             {
                 CompressAvatarData(NetworkSendBase, Anim);
+
+                NetworkSendBase.ReSizeAndErrorIfNeeded();
+
                 writer.Write(NetworkSendBase.LASM);
                 BasisNetworkProfiler.AvatarUpdatePacket.Sample(writer.Length);
 
@@ -51,11 +54,6 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
             // Now that all components are updated, we can compress the avatar update
             CompressAvatarUpdate(ref NetworkSendBase.LASM, AvatarData.Scale, AvatarData.Position, AvatarData.rotation, CachedPose.muscles, NetworkSendBase.PositionRanged, NetworkSendBase.ScaleRanged);
         }
-        // Pre-allocate the buffer with total size of the components
-        const int posScaleLength = 12 + 6; // 12 bytes for Position (3 floats) and 6 bytes for Scale (3 shorts)
-        const int rotLength = 14; // 14 bytes for Quaternion (x, y, z, w)
-        const int muscleLength = BasisCompressionOfMuscles.BoneLength * 4; // 4 bytes per muscle value
-        const int TotalArraySize = posScaleLength + rotLength + muscleLength;
         public static void CompressAvatarUpdate(ref LocalAvatarSyncMessage syncmessage, Vector3 Scale, Vector3 HipsPosition, Quaternion Rotation, float[] muscles, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
         {
             if (syncmessage.array != null || syncmessage.array.Length != TotalArraySize)
