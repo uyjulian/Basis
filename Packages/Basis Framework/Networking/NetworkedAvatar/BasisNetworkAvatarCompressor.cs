@@ -36,25 +36,24 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
             NetworkSendBase.PoseHandler.GetHumanPose(ref CachedPose);
 
             // Fetch the local player's avatar data and update its components
-            AvatarBuffer AvatarData = NetworkSendBase.LastAvatarBuffer;
-            AvatarData.Position = Anim.bodyPosition;
-            AvatarData.Scale = Anim.transform.localScale;
-            AvatarData.rotation = Anim.bodyRotation;
+            NetworkSendBase.LastAvatarBuffer.Position = Anim.bodyPosition;
+            NetworkSendBase.LastAvatarBuffer.Scale = Anim.transform.localScale;
+            NetworkSendBase.LastAvatarBuffer.rotation = Anim.bodyRotation;
 
             // Ensure muscles are properly populated or copied
-            if (AvatarData.Muscles == null || AvatarData.Muscles.Length != BasisCompressionOfMuscles.BoneLength)
+            if (NetworkSendBase.LastAvatarBuffer.Muscles == null || NetworkSendBase.LastAvatarBuffer.Muscles.Length != BasisCompressionOfMuscles.BoneLength)
             {
-                AvatarData.Muscles = CachedPose.muscles;
+                NetworkSendBase.LastAvatarBuffer.Muscles = CachedPose.muscles;
             }
             else
             {
-                Buffer.BlockCopy(CachedPose.muscles, 0, AvatarData.Muscles, 0, BasisCompressionOfMuscles.BoneLength);
+                Buffer.BlockCopy(CachedPose.muscles, 0, NetworkSendBase.LastAvatarBuffer.Muscles, 0, BasisCompressionOfMuscles.BoneLength);
             }
 
             // Now that all components are updated, we can compress the avatar update
-            CompressAvatarUpdate(ref NetworkSendBase.LASM, AvatarData.Scale, AvatarData.Position, AvatarData.rotation, CachedPose.muscles, NetworkSendBase.PositionRanged, NetworkSendBase.ScaleRanged);
+            CompressAvatarUpdate(ref NetworkSendBase.LASM, NetworkSendBase.LastAvatarBuffer, NetworkSendBase.PositionRanged, NetworkSendBase.ScaleRanged);
         }
-        public static void CompressAvatarUpdate(ref LocalAvatarSyncMessage syncmessage, Vector3 Scale, Vector3 HipsPosition, Quaternion Rotation, float[] muscles, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
+        public static void CompressAvatarUpdate(ref LocalAvatarSyncMessage syncmessage, AvatarBuffer AvatarBuffer, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
         {
             if (syncmessage.array != null || syncmessage.array.Length != TotalArraySize)
             {
@@ -64,14 +63,14 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
 
             // Compress Position (HipsPosition) and Scale directly into the array
             int offset = 0;
-            WriteVectorFloatToBuffer(HipsPosition,ref syncmessage.array, ref offset);
-            CompressUShortVector3ToBuffer(Scale, ScaleRanged,ref syncmessage.array, ref offset);
+            WriteVectorFloatToBuffer(AvatarBuffer.Position, ref syncmessage.array, ref offset);
+            CompressUShortVector3ToBuffer(AvatarBuffer.Scale, ScaleRanged,ref syncmessage.array, ref offset);
 
             // Compress Rotation (Quaternion) into the array
-            CompressQuaternionToBuffer(Rotation,ref syncmessage.array, ref offset);
+            CompressQuaternionToBuffer(AvatarBuffer.rotation, ref syncmessage.array, ref offset);
 
             // Compress Muscles data into the array
-            BasisCompressionOfMuscles.CompressMusclesToBuffer(muscles,ref syncmessage.array, ref offset);
+            BasisCompressionOfMuscles.CompressMusclesToBuffer(AvatarBuffer.Muscles, ref syncmessage.array, ref offset);
         }
 
         public static void WriteVectorFloatToBuffer(Vector3 values,ref byte[] buffer, ref int offset)

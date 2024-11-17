@@ -140,6 +140,7 @@ namespace Basis.Scripts.Networking.Recievers
 
                 RemotePlayer.RemoteBoneDriver.SimulateAndApply();
                 RemotePlayer.UpdateTransform(RemotePlayer.MouthControl.OutgoingWorldData.position, RemotePlayer.MouthControl.OutgoingWorldData.rotation);
+                Debug.Log("ruinning");
             }
         }
 
@@ -162,7 +163,7 @@ namespace Basis.Scripts.Networking.Recievers
             // Directly adjust scaling by applying the inverse of the AvatarHumanScale
             Vector3 Scaling = Vector3.one / AvatarHumanScale;  // Initial scaling with human scale inverse
                                                                //   Debug.Log("Initial Scaling: " + Scaling);
-
+            Debug.Log(" output.Position" + output.Position + ".Scale" + output.Scale);
             // Now adjust scaling with the output scaling vector
             Scaling = Divide(Scaling, output.Position);  // Apply custom scaling logic
                                                          //   Debug.Log("Adjusted Scaling: " + Scaling);
