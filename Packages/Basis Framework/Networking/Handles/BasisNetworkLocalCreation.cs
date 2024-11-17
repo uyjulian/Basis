@@ -1,9 +1,7 @@
 ﻿using Basis.Scripts.BasisSdk.Players;
-using Basis.Scripts.Networking.Compression;
 using Basis.Scripts.Networking.Factorys;
 using Basis.Scripts.Networking.NetworkedAvatar;
 using Basis.Scripts.Networking.NetworkedPlayer;
-using BasisSerializer.OdinSerializer;
 using DarkRift;
 using DarkRift.Server.Plugins.Commands;
 using System.Threading.Tasks;
@@ -32,7 +30,7 @@ namespace Basis.Scripts.Networking
             using (DarkRiftWriter writer = DarkRiftWriter.Create())
             {
                 byte[] Information = BasisBundleConversionNetwork.ConvertBasisLoadableBundleToBytes(BasisLocalPlayer.AvatarMetaData);
-                BasisNetworkAvatarCompressor.CompressIntoSendBase(NetworkedPlayer.NetworkSend, BasisLocalPlayer.Avatar.Animator);
+                BasisNetworkAvatarCompressor.Compress(NetworkedPlayer.NetworkSend, BasisLocalPlayer.Avatar.Animator);
 
                 BasisNetworkManagement.Instance.readyMessage.localAvatarSyncMessage = NetworkedPlayer.NetworkSend.LASM;
                 BasisNetworkManagement.Instance.readyMessage.clientAvatarChangeMessage = new ClientAvatarChangeMessage

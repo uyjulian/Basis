@@ -3,9 +3,7 @@ using Basis.Scripts.Networking.NetworkedPlayer;
 using Basis.Scripts.Tests;
 using DarkRift.Server.Plugins.Commands;
 using DarkRift;
-using Unity.Collections;
 using UnityEngine;
-using UnityEngine.Rendering;
 using static SerializableDarkRift;
 using Unity.Mathematics;
 using System.Collections.Generic;
@@ -19,6 +17,7 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
     {
         public bool Ready;
         public BasisNetworkedPlayer NetworkedPlayer;
+        public static BasisRangedUshortFloatData RotationCompressor = new BasisRangedUshortFloatData(-1f, 1f, 0.001f);
         [System.Serializable]
         public struct AvatarBuffer
         {
@@ -32,17 +31,7 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         public double delayTime = 0.1f; // How far behind real-time we want to stay, hopefully double is good.
         [SerializeField]
         public List<AvatarBuffer> AvatarDataBuffer = new List<AvatarBuffer>();
-        /// <summary>
-        /// represents the final position that we are goign to
-        /// </summary>
-        [SerializeField]
-        public BasisAvatarData TargetData = new BasisAvatarData();
-        /// <summary>
-        /// represents the most recently applied data
-        /// </summary>
-        [SerializeField]
-        public BasisAvatarData CurrentData = new BasisAvatarData();
-
+        public AvatarBuffer LastAvatarBuffer;
         public HumanPose HumanPose = new HumanPose();
         public LocalAvatarSyncMessage LASM = new LocalAvatarSyncMessage();
         public PlayerIdMessage NetworkNetID = new PlayerIdMessage();
@@ -53,32 +42,15 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         [SerializeField]
         public BasisRangedUshortFloatData ScaleRanged;
         public double TimeAsDoubleWhenLastSync;
-        public float AvatarMedian = 0.1f;
         public float LastAvatarDelta = 0.1f;
-        public FloatQueue LastCollectedDeltas = new FloatQueue(5);
         protected BasisNetworkSendBase()
         {
             LASM = new LocalAvatarSyncMessage()
             {
                 array = new byte[212],
             };
-            if (TargetData.Muscles.IsCreated == false)
-            {
-                TargetData.Muscles.ResizeArray(95);
-                TargetData.floatArray = new float[95];
-            }
-            if (CurrentData.Muscles.IsCreated == false)
-            {
-                CurrentData.floatArray = new float[95];
-                CurrentData.Muscles.ResizeArray(95);
-            }
             PositionRanged = new BasisRangedUshortFloatData(-BasisNetworkConstants.MaxPosition, BasisNetworkConstants.MaxPosition, BasisNetworkConstants.PositionPrecision);
             ScaleRanged = new BasisRangedUshortFloatData(BasisNetworkConstants.MinimumScale, BasisNetworkConstants.MaximumScale, BasisNetworkConstants.ScalePrecision);
-        }
-        public static void InitalizeAvatarStoredData(ref BasisAvatarData data, int VectorCount = 2, int QuaternionCount = 1, int MuscleCount = 95)
-        {
-            data.Vectors = new NativeArray<float3>(VectorCount, Allocator.Persistent);
-            data.Muscles = new NativeArray<float>(MuscleCount, Allocator.Persistent);
         }
         public static void InitalizeDataJobs(ref BasisDataJobs BasisDataJobs)
         {
@@ -120,25 +92,25 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
                     {
                         AvatarDataMessage_NoRecipients_NoPayload AvatarDataMessage_NoRecipients_NoPayload = new AvatarDataMessage_NoRecipients_NoPayload
                         {
-                             playerIdMessage = new PlayerIdMessage() { playerID = NetId },
+                            playerIdMessage = new PlayerIdMessage() { playerID = NetId },
                             messageIndex = MessageIndex
                         };
                         writer.Write(AvatarDataMessage_NoRecipients_NoPayload);
                         // No recipients and no payload
-                        WriteAndSendMessage(BasisTags.AvatarGenericMessage_NoRecipients_NoPayload,writer, DeliveryMethod);
+                        WriteAndSendMessage(BasisTags.AvatarGenericMessage_NoRecipients_NoPayload, writer, DeliveryMethod);
                     }
                     else
                     {
                         AvatarDataMessage_NoRecipients AvatarDataMessage_NoRecipients = new AvatarDataMessage_NoRecipients
                         {
-                             playerIdMessage = new PlayerIdMessage() { playerID = NetId },
+                            playerIdMessage = new PlayerIdMessage() { playerID = NetId },
                             messageIndex = MessageIndex,
                             payload = buffer
                         };
 
                         writer.Write(AvatarDataMessage_NoRecipients);
                         // No recipients but has payload
-                        WriteAndSendMessage(BasisTags.AvatarGenericMessage_NoRecipients,writer, DeliveryMethod);
+                        WriteAndSendMessage(BasisTags.AvatarGenericMessage_NoRecipients, writer, DeliveryMethod);
                     }
                 }
                 else
@@ -157,7 +129,7 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
                     {
                         AvatarDataMessage AvatarDataMessage = new AvatarDataMessage
                         {
-                             playerIdMessage = new PlayerIdMessage() { playerID = NetId },
+                            playerIdMessage = new PlayerIdMessage() { playerID = NetId },
                             messageIndex = MessageIndex,
                             payload = buffer,
                             recipients = Recipients
@@ -178,6 +150,5 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
                 BasisNetworkManagement.Instance.Client.SendMessage(msg, BasisNetworking.AvatarChannel, deliveryMethod);
             }
         }
-
     }
 }

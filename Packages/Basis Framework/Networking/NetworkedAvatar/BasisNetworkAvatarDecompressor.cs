@@ -1,5 +1,6 @@
 using Basis.Scripts.Networking.Compression;
-using DarkRift;
+using System;
+using Unity.Mathematics;
 using UnityEngine;
 using static Basis.Scripts.Networking.NetworkedAvatar.BasisNetworkSendBase;
 using static SerializableDarkRift;
@@ -11,54 +12,96 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         public static void DeCompress(BasisNetworkSendBase Base, ServerSideSyncPlayerMessage ServerSideSyncPlayerMessage)
         {
             Base.LASM = ServerSideSyncPlayerMessage.avatarSerialization;
-            DecompressAvatar( ref Base.TargetData, Base.LASM.array, Base.PositionRanged, Base.ScaleRanged);
-            Base.LastAvatarDelta = (float)(Time.realtimeSinceStartupAsDouble - Base.TimeAsDoubleWhenLastSync);
-            Base.LastCollectedDeltas.Add(Base.LastAvatarDelta);
-            Base.AvatarMedian = Base.LastCollectedDeltas.Median();
-            Base.TimeAsDoubleWhenLastSync = Time.realtimeSinceStartupAsDouble;
+            AvatarBuffer AvatarBuffer = new AvatarBuffer();
+            DecompressAvatar(ref AvatarBuffer, Base.LASM, Base.PositionRanged, Base.ScaleRanged);
+            double TimeasDouble = Time.realtimeSinceStartupAsDouble;
+            Base.LastAvatarDelta = (float)(TimeasDouble - Base.TimeAsDoubleWhenLastSync);
+            Base.TimeAsDoubleWhenLastSync = TimeasDouble;
+            AvatarBuffer.timestamp = TimeasDouble;
             // Add new rotation data to the buffer
-            Base.AvatarDataBuffer.Add(new AvatarBuffer
-            {
-                rotation = Base.TargetData.Rotation,
-                timestamp = Base.TimeAsDoubleWhenLastSync,
-                Muscles = Base.TargetData.Muscles.ToArray(),
-                Position = Base.TargetData.Vectors[1],
-                Scale = Base.TargetData.Vectors[0]
-            });
+            Base.AvatarDataBuffer.Add(AvatarBuffer);
 
             // Sort buffer by timestamp
             Base.AvatarDataBuffer.Sort((a, b) => a.timestamp.CompareTo(b.timestamp));
         }
-        public static void DecompressAvatar( ref BasisAvatarData AvatarData, byte[] AvatarUpdate, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
+        public static void DecompressAvatar(ref AvatarBuffer AvatarData, LocalAvatarSyncMessage LASM, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
         {
-            DecompressAvatarUpdate(AvatarUpdate, out Vector3 Scale, out Vector3 BodyPosition, ref AvatarData.Rotation, ref AvatarData, PositionRanged, ScaleRanged);
-            AvatarData.Vectors[1] = BodyPosition;
-            AvatarData.Vectors[0] = Scale;
-        }
-        public static void DecompressAvatarUpdate( byte[] compressedData, out Vector3 Scale, out Vector3 BodyPosition, ref Quaternion Rotation, ref BasisAvatarData BasisAvatarData, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
-        {
-            if (compressedData != null && compressedData.Length != 0)
+            if (LASM.array != null && LASM.array.Length != 0)
             {
-                using (var bitPacker = DarkRiftReader.CreateFromArray(compressedData, 0, compressedData.Length))
-                {
-                    DecompressScaleAndPosition(bitPacker, out BodyPosition, out Scale, PositionRanged, ScaleRanged);
-                    BasisCompressionOfRotation.DecompressQuaternion(bitPacker, ref Rotation);
-                    BasisCompressionOfMuscles.DecompressMuscles(bitPacker, ref BasisAvatarData);
-                }
+                int offset = 0;
+
+                // Decompress Position
+                AvatarData.Position = ReadVectorFloat(LASM.array, ref offset);
+
+                // Decompress Scale
+                AvatarData.Scale = DecompressUShortVector3(LASM.array, ScaleRanged, ref offset);
+
+                // Decompress Rotation
+                DecompressQuaternion(LASM.array, ref AvatarData.rotation, ref offset);
+
+                // Decompress Muscles
+                BasisCompressionOfMuscles.DecompressMuscles(LASM.array, ref AvatarData,ref offset);
             }
             else
             {
                 Debug.LogError("Array was null or empty!");
-                Scale = new Vector3();
-                BodyPosition = new Vector3();
-                Rotation = new Quaternion();
+                AvatarData.Scale = Vector3.zero;
+                AvatarData.Position = Vector3.zero;
+                AvatarData.rotation = Quaternion.identity;
             }
         }
-        public static void DecompressScaleAndPosition(DarkRiftReader Packer, out Vector3 BodyPosition, out Vector3 Scale, BasisRangedUshortFloatData PositionRanged, BasisRangedUshortFloatData ScaleRanged)
+        // Decompress a quaternion from a byte array (only decompressing w)
+        public static void DecompressQuaternion(byte[] packet, ref quaternion quaternion, ref int offset)
         {
-            BodyPosition = BasisCompressionOfPosition.DecompressVector3(Packer);
+            // Ensure the packet has enough data
+            if (packet.Length < offset + 14)
+                throw new ArgumentException("Packet is too small to contain quaternion data.");
 
-            Scale = BasisCompressionOfPosition.DecompressUShortVector3(Packer, ScaleRanged);
+            // Read x, y, z as floats
+            quaternion.value.x = BitConverter.ToSingle(packet, offset);
+            quaternion.value.y = BitConverter.ToSingle(packet, offset + 4);
+            quaternion.value.z = BitConverter.ToSingle(packet, offset + 8);
+
+            // Read and decompress w
+            ushort compressedW = BitConverter.ToUInt16(packet, offset + 12);
+            quaternion.value.w = BasisNetworkSendBase.RotationCompressor.Decompress(compressedW);
+
+            // Update offset after reading quaternion
+            offset += 14;
+        }
+
+        // Decompress a Vector3 (Position or Scale) from a byte array with the provided compression data
+        public static Vector3 DecompressUShortVector3(byte[] packet, BasisRangedUshortFloatData compressor, ref int offset)
+        {
+            // Decompress each component (2 bytes per ushort)
+            ushort x = BitConverter.ToUInt16(packet, offset);
+            ushort y = BitConverter.ToUInt16(packet, offset + 2);
+            ushort z = BitConverter.ToUInt16(packet, offset + 4);
+
+            // Use the compressor to decompress the ushort values to floats
+            float xVal = compressor.Decompress(x);
+            float yVal = compressor.Decompress(y);
+            float zVal = compressor.Decompress(z);
+
+            // Update offset after reading the Vector3
+            offset += 6;
+
+            // Return the decompressed Vector3
+            return new Vector3(xVal, yVal, zVal);
+        }
+
+        // Reads a Vector3 from a byte array and updates the offset
+        public static Vector3 ReadVectorFloat(byte[] array, ref int offset)
+        {
+            // Read each component as a float (4 bytes per float)
+            float x = BitConverter.ToSingle(array, offset);
+            float y = BitConverter.ToSingle(array, offset + sizeof(float));
+            float z = BitConverter.ToSingle(array, offset + 2 * sizeof(float));
+
+            // Update the offset after reading the Vector3
+            offset += 12;
+
+            return new Vector3(x, y, z);
         }
     }
 }

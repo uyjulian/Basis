@@ -1,18 +1,18 @@
 using Basis.Scripts.BasisSdk.Players;
+using Basis.Scripts.Networking.Compression;
 using Basis.Scripts.Networking.NetworkedAvatar;
 using Basis.Scripts.Networking.NetworkedPlayer;
 using System;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
 using static SerializableDarkRift;
 
 namespace Basis.Scripts.Networking.Recievers
 {
     [DefaultExecutionOrder(15001)]
     [System.Serializable]
-    public partial class BasisNetworkReceiver : BasisNetworkSendBase
+    public class BasisNetworkReceiver : BasisNetworkSendBase
     {
         public float[] silentData;
 
@@ -21,20 +21,10 @@ namespace Basis.Scripts.Networking.Recievers
 
         public BasisRemotePlayer RemotePlayer;
         public bool HasEvents = false;
-        /*
-AvatarJobs.positionJob.targetPositions = TargetData.Vectors;
-AvatarJobs.positionJob.positions = CurrentData.Vectors;
-AvatarJobs.positionJob.deltaTime = deltaTime;
-AvatarJobs.positionJob.smoothingSpeed = Settings.LerpSpeedMovement;
-AvatarJobs.positionJob.teleportThreshold = Settings.TeleportDistanceSquared;
-AvatarJobs.muscleJob.targetMuscles = TargetData.Muscles;
-AvatarJobs.muscleJob.muscles = CurrentData.Muscles;
-AvatarJobs.muscleJob.lerpTime = deltaTime * Settings.LerpSpeedMuscles;
-AvatarJobs.positionHandle = AvatarJobs.positionJob.Schedule();
-AvatarJobs.muscleHandle = AvatarJobs.muscleJob.Schedule(95, 1, AvatarJobs.positionHandle);
-AvatarJobs.muscleHandle.Complete();
-*/
+        public void InitalizeData()
+        {
 
+        }
         /// <summary>
         /// CurrentData equals final
         /// TargetData is the networks most recent info
@@ -55,11 +45,12 @@ AvatarJobs.muscleHandle.Complete();
                 AvatarDataBuffer.RemoveAt(0);
             }
 
-            // Only run job if there are enough data points
             if (AvatarDataBuffer.Count >= 2)
             {
-                double startTime = AvatarDataBuffer[0].timestamp;
-                double endTime = AvatarDataBuffer[1].timestamp;
+              AvatarBuffer From =  AvatarDataBuffer[0];
+                AvatarBuffer To = AvatarDataBuffer[1];
+                double startTime = From.timestamp;
+                double endTime = To.timestamp;
                 double targetTime = currentTime - delayTime;
 
                 // Calculate normalized interpolation factor t
@@ -74,12 +65,26 @@ AvatarJobs.muscleHandle.Complete();
                 NativeArray<Vector3> targetScales = new NativeArray<Vector3>(1, Allocator.TempJob);
 
                 // Copy data from AvatarDataBuffer into the NativeArrays
-                rotations[0] = AvatarDataBuffer[0].rotation;
-                targetRotations[0] = AvatarDataBuffer[1].rotation;
-                positions[0] = AvatarDataBuffer[0].Position;
-                targetPositions[0] = AvatarDataBuffer[1].Position;
-                scales[0] = AvatarDataBuffer[0].Scale;
-                targetScales[0] = AvatarDataBuffer[1].Scale;
+                rotations[0] = From.rotation;
+                targetRotations[0] = To.rotation;
+                positions[0] = From.Position;
+                targetPositions[0] = To.Position;
+                scales[0] = From.Scale;
+                targetScales[0] = To.Scale;
+
+                if (From.Muscles == null || From.Muscles.Length != BasisCompressionOfMuscles.BoneLength)
+                {
+                    Debug.Log("should never occur From");
+                    From.Muscles = new float[BasisCompressionOfMuscles.BoneLength];
+                }
+                if (To.Muscles == null || To.Muscles.Length != BasisCompressionOfMuscles.BoneLength)
+                {
+                    Debug.Log("should never occur To");
+                    To.Muscles = new float[BasisCompressionOfMuscles.BoneLength];
+                }
+                // Initialize muscle arrays with data from AvatarDataBuffer
+                NativeArray<float> musclesArray = new NativeArray<float>(From.Muscles, Allocator.TempJob);
+                NativeArray<float> targetMusclesArray = new NativeArray<float>(To.Muscles, Allocator.TempJob);
 
                 // Schedule the job to interpolate positions, rotations, and scales
                 AvatarJobs.AvatarJob = new UpdateAvatarRotationJob
@@ -95,50 +100,49 @@ AvatarJobs.muscleHandle.Complete();
 
                 AvatarJobs.AvatarHandle = AvatarJobs.AvatarJob.Schedule();
 
-                // Muscle interpolation job
-                NativeArray<float> muscles = new NativeArray<float>(AvatarDataBuffer[0].Muscles, Allocator.TempJob);
-                NativeArray<float> targetMuscles = new NativeArray<float>(AvatarDataBuffer[1].Muscles, Allocator.TempJob);
-
-                UpdateAvatarMusclesJob musclesJob = new UpdateAvatarMusclesJob
+                // Schedule muscle interpolation job
+                AvatarJobs.muscleJob = new UpdateAvatarMusclesJob
                 {
-                    muscles = muscles,
-                    targetMuscles = targetMuscles,
+                    muscles = musclesArray,
+                    targetMuscles = targetMusclesArray,
                     t = t
                 };
 
-                JobHandle musclesHandle = musclesJob.Schedule(muscles.Length, 64, AvatarJobs.AvatarHandle);
+                AvatarJobs.muscleHandle = AvatarJobs.muscleJob.Schedule(musclesArray.Length, 64, AvatarJobs.AvatarHandle);
 
                 // Complete the jobs and apply the results
-                musclesHandle.Complete();
+                AvatarJobs.muscleHandle.Complete();
 
                 // After jobs are done, apply the resulting values
-                CurrentData.Rotation = rotations[0];
-                CurrentData.Vectors[1] = positions[0];
-                CurrentData.Vectors[0] = scales[0];
+                LastAvatarBuffer.rotation = rotations[0];
+                LastAvatarBuffer.Position = positions[0];
+                LastAvatarBuffer.Scale = scales[0];
 
-                // Apply muscle data
-                for (int i = 0; i < muscles.Length; i++)
+                // Apply muscle data BEFORE disposing the NativeArrays
+                if (LastAvatarBuffer.Muscles == null)
                 {
-                    CurrentData.Muscles[i] = muscles[i];
+                    LastAvatarBuffer.Muscles = new float[BasisCompressionOfMuscles.BoneLength];
                 }
+                AvatarJobs.muscleJob.muscles.CopyTo(LastAvatarBuffer.Muscles);
 
-                // Dispose of NativeArrays after use
-                rotations.Dispose();
-                targetRotations.Dispose();
-                positions.Dispose();
-                targetPositions.Dispose();
-                scales.Dispose();
-                targetScales.Dispose();
-                muscles.Dispose();
-                targetMuscles.Dispose();
+                // Dispose of NativeArrays AFTER you've applied the values
+                AvatarJobs.AvatarJob.rotations.Dispose();
+                AvatarJobs.AvatarJob.targetRotations.Dispose();
+                AvatarJobs.AvatarJob.positions.Dispose();
+                AvatarJobs.AvatarJob.targetPositions.Dispose();
+                AvatarJobs.AvatarJob.scales.Dispose();
+                AvatarJobs.AvatarJob.targetScales.Dispose();
+                AvatarJobs.muscleJob.muscles.Dispose();
+                AvatarJobs.muscleJob.targetMuscles.Dispose();
 
-                ApplyPoseData(NetworkedPlayer.Player.Avatar.Animator, CurrentData, ref HumanPose);
+                ApplyPoseData(NetworkedPlayer.Player.Avatar.Animator, LastAvatarBuffer, ref HumanPose);
                 PoseHandler.SetHumanPose(ref HumanPose);
 
                 RemotePlayer.RemoteBoneDriver.SimulateAndApply();
                 RemotePlayer.UpdateTransform(RemotePlayer.MouthControl.OutgoingWorldData.position, RemotePlayer.MouthControl.OutgoingWorldData.rotation);
             }
         }
+
         public void LateUpdate()
         {
             if (Ready)
@@ -151,37 +155,37 @@ AvatarJobs.muscleHandle.Complete();
         {
             return NetworkedPlayer != null && NetworkedPlayer.Player != null && NetworkedPlayer.Player.Avatar != null;
         }
-        public void ApplyPoseData(Animator animator, BasisAvatarData output, ref HumanPose pose)
+        public void ApplyPoseData(Animator animator, AvatarBuffer output, ref HumanPose pose)
         {
             float AvatarHumanScale = animator.humanScale;
 
             // Directly adjust scaling by applying the inverse of the AvatarHumanScale
             Vector3 Scaling = Vector3.one / AvatarHumanScale;  // Initial scaling with human scale inverse
-         //   Debug.Log("Initial Scaling: " + Scaling);
+                                                               //   Debug.Log("Initial Scaling: " + Scaling);
 
             // Now adjust scaling with the output scaling vector
-            Scaling = Divide(Scaling, output.Vectors[0]);  // Apply custom scaling logic
-         //   Debug.Log("Adjusted Scaling: " + Scaling);
+            Scaling = Divide(Scaling, output.Position);  // Apply custom scaling logic
+                                                         //   Debug.Log("Adjusted Scaling: " + Scaling);
 
             // Apply scaling to position
-            Vector3 ScaledPosition = Vector3.Scale(output.Vectors[1], Scaling);  // Apply the scaling
+            Vector3 ScaledPosition = Vector3.Scale(output.Scale, Scaling);  // Apply the scaling
 
             // Apply pose data
             pose.bodyPosition = ScaledPosition;
-            pose.bodyRotation = output.Rotation;
+            pose.bodyRotation = output.rotation;
 
             // Ensure muscles array is correctly sized
             if (pose.muscles == null || pose.muscles.Length != output.Muscles.Length)
             {
-                pose.muscles = output.Muscles.ToArray();
+                pose.muscles = output.Muscles;
             }
             else
             {
-                output.Muscles.CopyTo(pose.muscles);
+                Buffer.BlockCopy(output.Muscles, 0, pose.muscles, 0, BasisCompressionOfMuscles.BoneLength);
             }
 
             // Adjust the local scale of the animator's transform
-            animator.transform.localScale = output.Vectors[0];  // Directly adjust scale with output scaling
+            animator.transform.localScale = output.Scale;  // Directly adjust scale with output scaling
         }
         public static Vector3 Divide(Vector3 a, Vector3 b)
         {
@@ -230,8 +234,6 @@ AvatarJobs.muscleHandle.Complete();
             if (!Ready)
             {
                 InitalizeDataJobs(ref AvatarJobs);
-                InitalizeAvatarStoredData(ref TargetData);
-                InitalizeAvatarStoredData(ref CurrentData);
                 Ready = true;
                 NetworkedPlayer = networkedPlayer;
                 RemotePlayer = (BasisRemotePlayer)NetworkedPlayer.Player;
@@ -246,12 +248,6 @@ AvatarJobs.muscleHandle.Complete();
         }
         public void OnDestroy()
         {
-            TargetData.Vectors.Dispose();
-            TargetData.Muscles.Dispose();
-
-            CurrentData.Vectors.Dispose();
-            CurrentData.Muscles.Dispose();
-
             if (HasEvents && RemotePlayer != null && RemotePlayer.RemoteAvatarDriver != null)
             {
                 RemotePlayer.RemoteAvatarDriver.CalibrationComplete -= OnCalibration;

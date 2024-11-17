@@ -1,4 +1,3 @@
-using System.Security.Policy;
 using Basis.Scripts.BasisSdk;
 using Basis.Scripts.BasisSdk.Players;
 using Basis.Scripts.Networking;
@@ -6,7 +5,6 @@ using Basis.Scripts.Networking.NetworkedPlayer;
 using BasisSerializer.OdinSerializer;
 using DarkRift;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public class BasisVideoPlayerNetworked : MonoBehaviour
 {
