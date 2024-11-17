@@ -4,6 +4,7 @@ using Basis.Scripts.Networking.NetworkedAvatar;
 using Basis.Scripts.Networking.NetworkedPlayer;
 using DarkRift;
 using DarkRift.Server.Plugins.Commands;
+using System;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.ResourceManagement.ResourceProviders;
@@ -32,24 +33,49 @@ namespace Basis.Scripts.Networking
                 byte[] Information = BasisBundleConversionNetwork.ConvertBasisLoadableBundleToBytes(BasisLocalPlayer.AvatarMetaData);
                 BasisNetworkAvatarCompressor.Compress(NetworkedPlayer.NetworkSend, BasisLocalPlayer.Avatar.Animator);
 
-               NetworkedPlayer.NetworkSend.ReSizeAndErrorIfNeeded();
-
-                BasisNetworkManagement.Instance.readyMessage.localAvatarSyncMessage = NetworkedPlayer.NetworkSend.LASM;
-                BasisNetworkManagement.Instance.readyMessage.clientAvatarChangeMessage = new ClientAvatarChangeMessage
+                NetworkedPlayer.NetworkSend.ReSizeAndErrorIfNeeded();
+                ReadyMessage ReadyMessage = BasisNetworkManagement.Instance.readyMessage;
+             //  Debug.Log("Ready Local LASM Size is " + NetworkedPlayer.NetworkSend.LASM.array.Length);
+                ReadyMessage.localAvatarSyncMessage = NetworkedPlayer.NetworkSend.LASM;
+                ReadyMessage.clientAvatarChangeMessage = new ClientAvatarChangeMessage
                 {
                     byteArray = Information,
                     loadMode = BasisLocalPlayer.AvatarLoadMode,
                 };
-                BasisNetworkManagement.Instance.readyMessage.playerMetaDataMessage = new PlayerMetaDataMessage
+                ReadyMessage.playerMetaDataMessage = new PlayerMetaDataMessage
                 {
                     playerUUID = BasisLocalPlayer.UUID,
                     playerDisplayName = BasisLocalPlayer.DisplayName
                 };
-                writer.Write(BasisNetworkManagement.Instance.readyMessage);
-                Message ReadyMessage = Message.Create(BasisTags.ReadyStateTag, writer);
-                BasisNetworkManagement.Instance.Client.SendMessage(ReadyMessage, BasisNetworking.EventsChannel, DeliveryMethod.ReliableOrdered);
-                BasisNetworkManagement.OnLocalPlayerJoined?.Invoke(NetworkedPlayer, BasisLocalPlayer);
-                BasisNetworkManagement.HasSentOnLocalPlayerJoin = true;
+                ValidateData(ref ReadyMessage);
+                writer.Write(ReadyMessage);
+              //  Debug.Log("Ready Local UUID " + ReadyMessage.playerMetaDataMessage.playerUUID);
+                BasisNetworkManagement.Instance.readyMessage = ReadyMessage;
+                using (Message ReadyMessages = Message.Create(BasisTags.ReadyStateTag, writer))
+                {
+                    BasisNetworkManagement.Instance.Client.SendMessage(ReadyMessages, BasisNetworking.EventsChannel, DeliveryMethod.ReliableOrdered);
+                    BasisNetworkManagement.OnLocalPlayerJoined?.Invoke(NetworkedPlayer, BasisLocalPlayer);
+                    BasisNetworkManagement.HasSentOnLocalPlayerJoin = true;
+                }
+            }
+        }
+        public static void ValidateData(ref ReadyMessage ReadyMessage)
+        {
+            if (string.IsNullOrEmpty(ReadyMessage.playerMetaDataMessage.playerDisplayName))
+            {
+                Debug.LogError("Missing playerMetaDataMessage Player Name!");
+            }
+            if (string.IsNullOrEmpty(ReadyMessage.playerMetaDataMessage.playerUUID))
+            {
+                Debug.LogError("Missing playerMetaDataMessage playerUUID Name!");
+            }
+            if (ReadyMessage.clientAvatarChangeMessage.byteArray == null || ReadyMessage.clientAvatarChangeMessage.byteArray.Length == 0)
+            {
+                Debug.LogError("Missing clientAvatarChangeMessage byteArray!");
+            }
+            if (ReadyMessage.localAvatarSyncMessage.array == null || ReadyMessage.localAvatarSyncMessage.array.Length == 0)
+            {
+                Debug.LogError("Missing localAvatarSyncMessage array!");
             }
         }
     }

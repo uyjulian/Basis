@@ -51,6 +51,7 @@ namespace Basis.Scripts.BasisSdk.Players
         public const string DefaultAvatar = "LoadingAvatar";
         public async Task LocalInitialize()
         {
+            UUID = Guid.NewGuid().ToString();
             if (BasisHelpers.CheckInstance(Instance))
             {
                 Instance = this;

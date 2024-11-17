@@ -143,7 +143,13 @@ namespace Basis.Scripts.Networking.Recievers
                 Debug.Log("ruinning");
             }
         }
-
+        public void OnDrawGizmos()
+        {
+            foreach(AvatarBuffer Buffer in AvatarDataBuffer)
+            {
+                Gizmos.DrawWireSphere(Buffer.Position, 0.1f);
+            }
+        }
         public void LateUpdate()
         {
             if (Ready)
@@ -163,7 +169,7 @@ namespace Basis.Scripts.Networking.Recievers
             // Directly adjust scaling by applying the inverse of the AvatarHumanScale
             Vector3 Scaling = Vector3.one / AvatarHumanScale;  // Initial scaling with human scale inverse
                                                                //   Debug.Log("Initial Scaling: " + Scaling);
-            Debug.Log(" output.Position" + output.Position + ".Scale" + output.Scale);
+            //Debug.Log(" output.Position" + output.Position + ".Scale" + output.Scale);
             // Now adjust scaling with the output scaling vector
             Scaling = Divide(Scaling, output.Position);  // Apply custom scaling logic
                                                          //   Debug.Log("Adjusted Scaling: " + Scaling);

@@ -45,10 +45,10 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
         public float LastAvatarDelta = 0.1f;
 
         // Pre-allocate the buffer with total size of the components
-        public const int posScaleLength = 12 + 6; // 12 bytes for Position (3 floats) and 6 bytes for Scale (3 shorts)
-        public const int rotLength = 14; // 14 bytes for Quaternion (x, y, z, w)
-        public const int muscleLength = BasisCompressionOfMuscles.BoneLength * 4; // 4 bytes per muscle value
-        public const int TotalArraySize = posScaleLength + rotLength + muscleLength;
+        public const int posScaleLength = 12 + 6; // 12 bytes for Position (3 floats) and 6 bytes for Scale (3 shorts) 18
+        public const int rotLength = 14; // 14 bytes for Quaternion (x, y, z, w) 14
+        public const int muscleLength = BasisCompressionOfMuscles.BoneLength * 4; // 4 bytes per muscle value 380
+        public const int TotalArraySize = posScaleLength + rotLength + muscleLength;//412
         protected BasisNetworkSendBase()
         {
             PositionRanged = new BasisRangedUshortFloatData(-BasisNetworkConstants.MaxPosition, BasisNetworkConstants.MaxPosition, BasisNetworkConstants.PositionPrecision);
