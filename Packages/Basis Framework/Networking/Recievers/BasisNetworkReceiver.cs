@@ -9,6 +9,7 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using UnityEngine;
 using static SerializableDarkRift;
+using static UnityEngine.GraphicsBuffer;
 
 namespace Basis.Scripts.Networking.Recievers
 {
@@ -20,8 +21,6 @@ namespace Basis.Scripts.Networking.Recievers
 
         [SerializeField]
         public BasisAudioReceiver AudioReceiverModule = new BasisAudioReceiver();
-        [Header("Interpolation Settings")]
-        public double delayTime = 0.1f; // How far behind real-time we want to stay, hopefully double is good.
         [SerializeField]
         public List<AvatarBuffer> AvatarDataBuffer = new List<AvatarBuffer>();
         public BasisRemotePlayer RemotePlayer;
@@ -33,7 +32,6 @@ namespace Basis.Scripts.Networking.Recievers
         public JobHandle musclesHandle;
         public JobHandle AvatarHandle;
         public UpdateAvatarMusclesJob musclesJob = new UpdateAvatarMusclesJob();
-        public float DeltaTime;
         public UpdateAvatarJob AvatarJob = new UpdateAvatarJob();
         public float[] MuscleFinalStageOutput = new float[90];
         public quaternion OutputRotation;
@@ -61,7 +59,17 @@ namespace Basis.Scripts.Networking.Recievers
             if (muscles.IsCreated) muscles.Dispose();
             if (targetMuscles.IsCreated) targetMuscles.Dispose();
         }
+        public float normalizedTime;
+        public float UnnormalizedTime;
 
+        public AvatarBuffer Start;
+        public AvatarBuffer End;
+        public bool HasStartAndEnd = false;
+        public double ExecutionTime;
+        public double Duration;
+
+        public double LastRecTime;
+        public double AverageRecTime;
         /// <summary>
         /// Perform computations to interpolate and update avatar state.
         /// </summary>
@@ -71,36 +79,45 @@ namespace Basis.Scripts.Networking.Recievers
             {
                 return;
             }
-
-            double currentTime = Time.realtimeSinceStartupAsDouble;
-
-            // Remove outdated rotations, keeping at least 2 data points
-            while (AvatarDataBuffer.Count > 1 && currentTime - delayTime > AvatarDataBuffer[1].timestamp)
+            //  if (AvatarDataBuffer.Count > 2)
+            //  {
+            if (FindEnd)
             {
-                BasisAvatarBufferPool.Return(AvatarDataBuffer[0]);
-                AvatarDataBuffer.RemoveAt(0);
+                if (AvatarDataBuffer.Count != 0)
+                {
+                    //get the oldest
+                    End = AvatarDataBuffer[0];
+                    FindEnd = false;
+                    HasStartAndEnd = true;
+                }
+                else
+                {
+                    HasStartAndEnd = false;
+                    PoseHandler.SetHumanPose(ref HumanPose);
+                    RemotePlayer.RemoteBoneDriver.SimulateAndApply();
+                    RemotePlayer.UpdateTransform(RemotePlayer.MouthControl.OutgoingWorldData.position, RemotePlayer.MouthControl.OutgoingWorldData.rotation);
+                }
             }
-            // Ensure there are enough data points
-            if (AvatarDataBuffer.Count >= 2)
+            if (HasStartAndEnd)
             {
-                AvatarBuffer Inital = AvatarDataBuffer[0];
-                AvatarBuffer Target = AvatarDataBuffer[1];
-                double startTime = AvatarDataBuffer[0].timestamp;
-                double endTime = AvatarDataBuffer[1].timestamp;
-                double targetTime = currentTime - delayTime;
+                double startTime = Start.timestamp; // Timestamp for the first data point behind in time
+                double endTime = End.timestamp;    // Timestamp for the second data point behind in time
+                Duration = endTime - startTime;
+                double targetTime = Time.realtimeSinceStartupAsDouble - Duration; // Current time
+                ExecutionTime = (targetTime - startTime);
+                // Calculate normalized time (0 to 1)
+                UnnormalizedTime = (float)(ExecutionTime / Duration);
+                // Clamp normalized time between 0 and 1 to avoid overflow/underflow issues
+                normalizedTime = math.clamp(UnnormalizedTime, 0f, 1f);
 
-                // Calculate normalized interpolation factor t
-                float normalizedTime = (float)((targetTime - startTime) / (endTime - startTime));
-                normalizedTime = Mathf.Clamp01(normalizedTime);
+                TargetVectors[0] = End.Position; // Target position at index 0
+                OuputVectors[0] = Start.Position; // Position at index 0
 
-                TargetVectors[0] = Target.Position; // Target position at index 0
-                OuputVectors[0] = Inital.Position; // Position at index 0
+                OuputVectors[1] = Start.Scale;    // Scale at index 1
+                TargetVectors[1] = End.Scale;    // Target scale at index 1
 
-                OuputVectors[1] = Inital.Scale;    // Scale at index 1
-                TargetVectors[1] = Target.Scale;    // Target scale at index 1
-
-                muscles.CopyFrom(Inital.Muscles);
-                targetMuscles.CopyFrom(Target.Muscles);
+                muscles.CopyFrom(Start.Muscles);
+                targetMuscles.CopyFrom(End.Muscles);
                 AvatarJob.Time = normalizedTime;
 
                 AvatarHandle = AvatarJob.Schedule();
@@ -108,7 +125,7 @@ namespace Basis.Scripts.Networking.Recievers
                 // Muscle interpolation job
                 musclesJob.Time = normalizedTime;
                 musclesHandle = musclesJob.Schedule(muscles.Length, 64, AvatarHandle);
-                OutputRotation = math.slerp(Inital.rotation, Target.rotation, normalizedTime);
+                OutputRotation = math.slerp(Start.rotation, End.rotation, normalizedTime);
                 // Complete the jobs and apply the results
                 musclesHandle.Complete();
 
@@ -117,8 +134,20 @@ namespace Basis.Scripts.Networking.Recievers
 
                 RemotePlayer.RemoteBoneDriver.SimulateAndApply();
                 RemotePlayer.UpdateTransform(RemotePlayer.MouthControl.OutgoingWorldData.position, RemotePlayer.MouthControl.OutgoingWorldData.rotation);
+
+                //ready to move on
+                if (normalizedTime == 1)
+                {
+                    AvatarDataBuffer.RemoveAt(0);//remove the start from the buffer
+                    BasisAvatarBufferPool.Return(Start);//return start to the buffer
+
+                    Start = End;//swap the end to now be where we go from
+                    FindEnd = true;
+                }
             }
+            //  }
         }
+        public bool FindEnd = false;
         public void ApplyPoseData(Animator animator, float3 Scale, float3 Position, quaternion Rotation, NativeArray<float> Muscles)
         {
             // Directly adjust scaling by applying the inverse of the AvatarHumanScale

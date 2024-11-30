@@ -15,13 +15,33 @@ namespace Basis.Scripts.Networking.NetworkedAvatar
             // Update receiver state
             baseReceiver.LASM = syncMessage.avatarSerialization;
             AvatarBuffer avatarBuffer = BasisAvatarBufferPool.Rent();
+            double realtimeSinceStartupAsDouble = Time.realtimeSinceStartupAsDouble;
             int Offset = 0;
             avatarBuffer.Position = BasisBitPackerExtensions.ReadVectorFloatFromBytes(ref syncMessage.avatarSerialization.array, ref Offset);
             avatarBuffer.Scale = BasisBitPackerExtensions.ReadUshortVectorFloatFromBytes(ref syncMessage.avatarSerialization.array, BasisNetworkReceiver.ScaleRanged, ref Offset);
             avatarBuffer.rotation = BasisBitPackerExtensions.ReadQuaternionFromBytes(ref syncMessage.avatarSerialization.array, BasisNetworkSendBase.RotationCompression, ref Offset);
             BasisBitPackerExtensions.ReadMusclesFromBytes(ref syncMessage.avatarSerialization.array, ref avatarBuffer.Muscles, ref Offset);
-            avatarBuffer.timestamp = Time.realtimeSinceStartupAsDouble;
+            avatarBuffer.timestamp = realtimeSinceStartupAsDouble;
             baseReceiver.AvatarDataBuffer.Add(avatarBuffer);
+
+            baseReceiver.AverageRecTime = realtimeSinceStartupAsDouble - baseReceiver.LastRecTime;
+            baseReceiver.LastRecTime = realtimeSinceStartupAsDouble;
+
+            if (baseReceiver.HasStartAndEnd == false)
+            {
+                if (baseReceiver.Start.timestamp == 0)
+                {
+                    baseReceiver.Start = avatarBuffer;
+                }
+                else
+                {
+                    if (baseReceiver.End.timestamp == 0)
+                    {
+                        baseReceiver.End = avatarBuffer;
+                        baseReceiver.HasStartAndEnd = true;
+                    }
+                }
+            }
         }
     }
 }
