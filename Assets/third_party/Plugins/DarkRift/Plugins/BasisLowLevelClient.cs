@@ -177,7 +177,7 @@ namespace DarkRift.Client.Unity
         {
             if (Client != null)
             {
-                return Client.Disconnect();
+                return Client.Disconnect("Client Called Disconnect");
             }
             else
             {
