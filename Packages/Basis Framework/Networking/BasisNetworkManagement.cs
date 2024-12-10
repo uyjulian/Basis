@@ -184,7 +184,8 @@ namespace Basis.Scripts.Networking
                 HasAuthenticated = true;
                 Client.Client.MessageReceived += MainThreadMessageReceived;
             }
-            Client.ConnectInBackground(BasisNetworkIPResolve.IpOutput(IpString), Port, Callback);
+            byte[] Bytes = new byte[16];    
+            Client.ConnectInBackground(BasisNetworkIPResolve.IpOutput(IpString), Port, Bytes, Callback);
         }
         public bool ISServer = false;
         private void Disconnected(object sender, DisconnectedEventArgs e)

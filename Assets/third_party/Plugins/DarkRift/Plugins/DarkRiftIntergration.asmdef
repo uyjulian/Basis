@@ -1,3 +1,19 @@
 {
-	"name": "DarkRiftIntergration"
+    "name": "DarkRiftIntergration",
+    "rootNamespace": "",
+    "references": [
+        "GUID:753c09ae0ca478d4a810e94b85e70420",
+        "GUID:3ee1e8f53a6a39f40bc1bd52f383c23b",
+        "GUID:131d04e05491b6e4bab0cc92c5fda136",
+        "GUID:2447eeb207c74db44bee01b87cf59bbe"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

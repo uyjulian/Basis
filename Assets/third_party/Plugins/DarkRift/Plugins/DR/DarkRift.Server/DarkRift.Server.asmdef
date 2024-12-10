@@ -1,0 +1,19 @@
+{
+    "name": "DarkRift.Server",
+    "rootNamespace": "",
+    "references": [
+        "GUID:753c09ae0ca478d4a810e94b85e70420",
+        "GUID:131d04e05491b6e4bab0cc92c5fda136"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "!DARKRIFT_NO_SERVER"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

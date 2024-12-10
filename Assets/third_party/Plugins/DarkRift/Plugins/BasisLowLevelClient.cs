@@ -119,10 +119,10 @@ namespace DarkRift.Client.Unity
         /// <param name="ip">The IP address of the server.</param>
         /// <param name="port">The port of the server.</param>
         /// <param name="callback">The callback to make when the connection attempt completes.</param>
-        public void ConnectInBackground(IPAddress ip, int port, DarkRiftClient.ConnectCompleteHandler callback = null)
+        public void ConnectInBackground(IPAddress ip, int port, byte[] Payload, DarkRiftClient.ConnectCompleteHandler callback = null)
         {
-            LiteNetLibConnnection = new LiteNetLibClientConnection(ip.ToString(), port);
-            Client.ConnectInBackground(LiteNetLibConnnection,
+            LiteNetLibConnnection = new LiteNetLibClientConnection();
+            Client.ConnectInBackground(LiteNetLibConnnection, ip.ToString(), port, Payload,
                 delegate (Exception e)
                 {
                     if (callback != null)

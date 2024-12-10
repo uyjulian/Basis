@@ -2,7 +2,8 @@
     "name": "BasisSDK",
     "rootNamespace": "",
     "references": [
-        "GUID:d8b63aba1907145bea998dd612889d6b"
+        "GUID:d8b63aba1907145bea998dd612889d6b",
+        "GUID:753c09ae0ca478d4a810e94b85e70420"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
