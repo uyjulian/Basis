@@ -20,20 +20,6 @@ namespace DarkRift
     /// </remarks>
     public sealed class Message : IDisposable
     {
-        /// <summary>
-        ///     Bitmask for the command message flag.
-        /// </summary>
-        private const byte COMMAND_FLAG_MASK = 0b10000000;
-
-        /// <summary>
-        ///     Bitmask for the ping message flag.
-        /// </summary>
-        private const byte IS_PING_FLAG_MASK = 0b01000000;
-
-        /// <summary>
-        ///     Bitmask for the type of ping message flag.
-        /// </summary>
-        private const byte PING_TYPE_FLAG_MASK = 0b00100000;
 
         /// <summary>
         ///     The buffer behind the message.
@@ -67,8 +53,6 @@ namespace DarkRift
                     tag = value;
             }
         }
-
-        public bool IsCommandMessage => tag == BasisTags.Configure || tag == BasisTags.Identify;
 
         private ushort tag;
 
@@ -144,22 +128,25 @@ namespace DarkRift
         ///     Creates a new message from the given buffer.
         /// </summary>
         /// <param name="buffer">The buffer containing the message.</param>
-        /// <param name="isReadOnly">Whether the message should be created read only or not.</param>
+        /// <param name="isReadOnly">Whether the message should be created read-only or not.</param>
         internal static Message Create(IMessageBuffer buffer, bool isReadOnly)
         {
             Message message = ObjectCache.GetMessage();
 
             message.isCurrentlyLoungingInAPool = false;
 
-            // We clone the message buffer so we can modify it's properties safely
+            // We clone the message buffer so we can modify its properties safely
             message.buffer = buffer.Clone();
-           
-            message.buffer.Offset = buffer.Offset;
-            message.buffer.Count = buffer.Count;
+
+            // Adjust buffer offset and count
+            int headerLength = 3; // Previously depended on ping messages, now fixed
+            message.buffer.Offset = buffer.Offset + headerLength;
+            message.buffer.Count = buffer.Count - headerLength;
 
             message.IsReadOnly = isReadOnly;
 
             message.tag = BigEndianHelper.ReadUInt16(buffer.Buffer, buffer.Offset + 1);
+
             return message;
         }
 
@@ -247,20 +234,24 @@ namespace DarkRift
                 Serialize(writer);
             }
         }
+        public bool IsCommandMessage => Tag == BasisTags.Configure || Tag == BasisTags.Identify;
+
         /// <summary>
         ///     Converts this message into a buffer.
         /// </summary>
         /// <returns>The buffer.</returns>
+        //TODO DR3 Make this return an IMessageBuffer
         internal MessageBuffer ToBuffer()
         {
-            int totalLength = DataLength;
+            int headerLength = 3; // Fixed header length, no conditional logic needed
+            int totalLength = headerLength + DataLength;
 
             MessageBuffer buffer = MessageBuffer.Create(totalLength);
             buffer.Count = totalLength;
             BigEndianHelper.WriteBytes(buffer.Buffer, buffer.Offset + 1, tag);
 
-            //Due to poor design, here's un unavoidable memory copy! Hooray!
-            Buffer.BlockCopy(this.buffer.Buffer, this.buffer.Offset, buffer.Buffer, buffer.Offset, this.buffer.Count);
+            // Due to poor design, here's an unavoidable memory copy! Hooray!
+            Buffer.BlockCopy(this.buffer.Buffer, this.buffer.Offset, buffer.Buffer, buffer.Offset + headerLength, this.buffer.Count);
 
             return buffer;
         }

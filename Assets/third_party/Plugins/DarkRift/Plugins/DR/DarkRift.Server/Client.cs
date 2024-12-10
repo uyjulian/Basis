@@ -152,14 +152,16 @@ namespace DarkRift.Server
 
                 using (Message command = Message.Create(BasisTags.Configure, writer))
                 {
-                    PushBuffer(command.ToBuffer(), defaultMessageChannel, DeliveryMethod.ReliableOrdered);
-
+                    using (MessageBuffer buffer = command.ToBuffer())
+                    {
+                        Console.WriteLine("Buffer " + buffer.Buffer.Length);
+                        PushBuffer(buffer, defaultMessageChannel, DeliveryMethod.ReliableOrdered);
+                    }
                     // Make sure we trigger the sent metric still
                     messagesSentCounter.Increment();
                 }
             }
         }
-
         /// <summary>
         /// Starts this client's connecting listening for messages.
         /// </summary>
