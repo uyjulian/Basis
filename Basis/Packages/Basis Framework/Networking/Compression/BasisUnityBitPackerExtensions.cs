@@ -86,7 +86,7 @@ namespace Basis.Scripts.Networking.Compression
         // Manual conversion of Vector3 to bytes (without BitConverter)
         public static void WriteVectorFloatToBytes(UnityEngine. Vector3 values, ref byte[] bytes, ref int offset)
         {
-            EnsureSize(ref bytes, offset + 12);
+            EnsureSize(ref bytes, offset + 12);//12
 
             // Manually write the float values to bytes (no BitConverter)
             WriteFloatToBytes(values.x, ref bytes, ref offset);
@@ -97,7 +97,7 @@ namespace Basis.Scripts.Networking.Compression
         // Manual conversion of bytes to Vector3 (without BitConverter)
         public static Unity.Mathematics.float3 ReadVectorFloatFromBytes(ref byte[] bytes, ref int offset)
         {
-            EnsureSize(bytes, offset + 12);
+            EnsureSize(bytes, offset + 12);//12
 
             float x = ReadFloatFromBytes(ref bytes, ref offset);
             float y = ReadFloatFromBytes(ref bytes, ref offset);
@@ -109,7 +109,7 @@ namespace Basis.Scripts.Networking.Compression
         // Manual conversion of quaternion to bytes (without BitConverter)
         public static void WriteQuaternionToBytes(Unity.Mathematics.quaternion rotation, ref byte[] bytes, ref int offset, BasisRangedUshortFloatData compressor)
         {
-            EnsureSize(ref bytes, offset + 14);
+            EnsureSize(ref bytes, offset + 14);//14
             ushort compressedW = compressor.Compress(rotation.value.w);
 
             // Write the quaternion's components
@@ -126,7 +126,7 @@ namespace Basis.Scripts.Networking.Compression
         // Manual conversion of bytes to quaternion (without BitConverter)
         public static Unity.Mathematics.quaternion ReadQuaternionFromBytes(ref byte[] bytes, BasisRangedUshortFloatData compressor, ref int offset)
         {
-            EnsureSize(bytes, offset + 14);
+            EnsureSize(bytes, offset + 14);//14
 
             float x = ReadFloatFromBytes(ref bytes, ref offset);
             float y = ReadFloatFromBytes(ref bytes, ref offset);
@@ -141,7 +141,7 @@ namespace Basis.Scripts.Networking.Compression
         // Write muscles to bytes (no BitConverter)
         public static void WriteMusclesToBytes(float[] muscles, ref byte[] bytes, ref int offset)
         {
-            int requiredLength = 90 * sizeof(float);
+            int requiredLength = 90 * sizeof(float);//90 * 4 = 360
             EnsureSize(ref bytes, offset + requiredLength);
 
             // Manually copy float values as bytes

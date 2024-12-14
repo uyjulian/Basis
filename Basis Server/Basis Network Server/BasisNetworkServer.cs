@@ -427,7 +427,20 @@ public static class BasisNetworkServer
                 serverReadyMessage.playerIdMessage = new PlayerIdMessage { playerID = (ushort)client.Id };
                 serverReadyMessage.localReadyMessage = new ReadyMessage
                 {
-                    localAvatarSyncMessage = new LocalAvatarSyncMessage() { array = new byte[390] },
+                    localAvatarSyncMessage = new LocalAvatarSyncMessage()
+                    {
+                        MuscleArray = new float[90],
+                        X = 1,
+                        Y = 1,
+                        Z = 1,
+                        XQ = 1,
+                        YQ = 1,
+                        ZQ = 1,
+                        WQ = 1,
+                        XS = 1,
+                        YS = 1,
+                        ZS = 1,
+                    },
                     clientAvatarChangeMessage = new ClientAvatarChangeMessage() { byteArray = new byte[] { }, byteLength = 0 },
                     playerMetaDataMessage = new PlayerMetaDataMessage() { playerDisplayName = "Error", playerUUID = string.Empty },
                 };

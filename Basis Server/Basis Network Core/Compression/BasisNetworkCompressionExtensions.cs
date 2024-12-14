@@ -2,26 +2,10 @@
 using System;
 using System.Collections.Generic;
 using static BasisNetworkPrimitiveCompression;
-using static SerializableBasis;
 namespace Basis.Network.Core.Compression
 {
     public static class BasisNetworkCompressionExtensions
     {
-        /// <summary>
-        /// Single API to handle all avatar decompression tasks.
-        /// </summary>
-        public static Vector3 DecompressAndProcessAvatar(ServerSideSyncPlayerMessage syncMessage)
-        {
-            // Update receiver state
-            //  baseReceiver.LASM = syncMessage.avatarSerialization;
-            //  AvatarBuffer avatarBuffer = new AvatarBuffer();
-            int Offset = 0;
-            return ReadVectorFloatFromBytes(ref syncMessage.avatarSerialization.array, ref Offset);
-            //  avatarBuffer.Scale = BasisBitPackerExtensions.ReadUshortVectorFloatFromBytes(ref syncMessage.avatarSerialization.array, BasisNetworkReceiver.ScaleRanged, ref Offset);
-            //avatarBuffer.rotation = BasisBitPackerExtensions.ReadQuaternionFromBytes(ref syncMessage.avatarSerialization.array, BasisNetworkSendBase.RotationCompression, ref Offset);
-            // BasisBitPackerExtensions.ReadMusclesFromBytes(ref syncMessage.avatarSerialization.array, ref avatarBuffer.Muscles, ref Offset);
-            //   baseReceiver.AvatarDataBuffer.Add(avatarBuffer);
-        }
         public static BasisRangedUshortFloatData BasisRangedUshortFloatData = new BasisRangedUshortFloatData(-1f, 1f, 0.001f);
         public static int LengthSize = 90;
         public static int LengthBytes = LengthSize * 4; // Initialize LengthBytes first

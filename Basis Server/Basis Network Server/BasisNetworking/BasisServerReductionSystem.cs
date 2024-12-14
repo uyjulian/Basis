@@ -154,8 +154,8 @@ public class BasisServerReductionSystem
                 {
                     if (PlayerSync.TryGetValue(playerID.localClient, out SyncedToPlayerPulse pulse))
                     {
-                        Vector3 from = BasisNetworkCompressionExtensions.DecompressAndProcessAvatar(pulse.lastPlayerInformation);
-                        Vector3 to = BasisNetworkCompressionExtensions.DecompressAndProcessAvatar(playerData.serverSideSyncPlayerMessage);
+                        Vector3 from = new Vector3(pulse.lastPlayerInformation.avatarSerialization.X, pulse.lastPlayerInformation.avatarSerialization.Y, pulse.lastPlayerInformation.avatarSerialization.Z);
+                        Vector3 to = new Vector3(playerData.serverSideSyncPlayerMessage.avatarSerialization.X, playerData.serverSideSyncPlayerMessage.avatarSerialization.Y, playerData.serverSideSyncPlayerMessage.avatarSerialization.Z);
                         // Calculate the distance between the two points
                         float activeDistance = Distance(from, to);
                         // Adjust the timer interval based on the new syncRateMultiplier
@@ -174,15 +174,8 @@ public class BasisServerReductionSystem
                         Console.WriteLine("Unable to find Pulse for LocalClient Wont Do Interval Adjust");
                     }
                     NetDataWriter Writer = new NetDataWriter();
-                    if (playerData.serverSideSyncPlayerMessage.avatarSerialization.array == null || playerData.serverSideSyncPlayerMessage.avatarSerialization.array.Length == 0)
-                    {
-                        Console.WriteLine("Unable to send out Avatar Data Was null or Empty!");
-                    }
-                    else
-                    {
-                        playerData.serverSideSyncPlayerMessage.Serialize(Writer);
-                        playerID.localClient.Send(Writer, BasisNetworkCommons.MovementChannel, DeliveryMethod.Sequenced);
-                    }
+                    playerData.serverSideSyncPlayerMessage.Serialize(Writer);
+                    playerID.localClient.Send(Writer, BasisNetworkCommons.MovementChannel, DeliveryMethod.Sequenced);
                     playerData.newDataExists = false;
                 }
             }
