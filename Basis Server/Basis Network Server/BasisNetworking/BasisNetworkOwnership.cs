@@ -45,7 +45,7 @@ namespace Basis.Network.Server.Ownership
             {
                 OwnershipTransferMessage ownershipTransferMessage = new OwnershipTransferMessage();
                 ownershipTransferMessage.Deserialize(Reader);
-                ushort ClientId = (ushort)Peer.RemoteId;
+                ushort ClientId = (ushort)Peer.Id;
                 NetDataWriter Writer = new NetDataWriter();
                 Writer.Put(BasisNetworkTag.OwnershipTransfer);
                 //all clients need to know about a ownership switch

@@ -17,19 +17,19 @@ namespace Basis.Network.Server.Generic
         /// <param name="client">The client representing the player to be removed.</param>
         public static void RemovePlayer(NetPeer client)
         {
-            serverSideLastState.TryRemove(client.RemoteId, out _);
+            serverSideLastState.TryRemove(client.Id, out _);
         }
 
         public static void AddLastData(NetPeer client, LocalAvatarSyncMessage avatarSyncMessage)
         {
-            if (serverSideLastState.TryGetValue(client.RemoteId, out var existingData))
+            if (serverSideLastState.TryGetValue(client.Id, out var existingData))
             {
                 existingData.lastAvatarSyncState = avatarSyncMessage;
-                serverSideLastState[client.RemoteId] = existingData;
+                serverSideLastState[client.Id] = existingData;
             }
             else
             {
-                serverSideLastState[client.RemoteId] = new StoredData
+                serverSideLastState[client.Id] = new StoredData
                 {
                     lastAvatarSyncState = avatarSyncMessage
                 };
@@ -38,38 +38,38 @@ namespace Basis.Network.Server.Generic
 
         public static void AddLastData(NetPeer client, ReadyMessage readyMessage)
         {
-            if (serverSideLastState.TryGetValue(client.RemoteId, out var existingData))
+            if (serverSideLastState.TryGetValue(client.Id, out var existingData))
             {
                 existingData.lastAvatarSyncState = readyMessage.localAvatarSyncMessage;
                 existingData.lastAvatarChangeState = readyMessage.clientAvatarChangeMessage;
                 existingData.playerMetaDataMessage = readyMessage.playerMetaDataMessage;
-                serverSideLastState[client.RemoteId] = existingData;
+                serverSideLastState[client.Id] = existingData;
 
-                BNL.Log("Updated " + client.RemoteId + " with AvatarID " + readyMessage.clientAvatarChangeMessage.byteArray.Length);
+                BNL.Log("Updated " + client.Id + " with AvatarID " + readyMessage.clientAvatarChangeMessage.byteArray.Length);
             }
             else
             {
-                serverSideLastState[client.RemoteId] = new StoredData
+                serverSideLastState[client.Id] = new StoredData
                 {
                     lastAvatarSyncState = readyMessage.localAvatarSyncMessage,
                     lastAvatarChangeState = readyMessage.clientAvatarChangeMessage,
                     playerMetaDataMessage = readyMessage.playerMetaDataMessage
                 };
 
-                BNL.Log("Added " + client.RemoteId + " with AvatarID " + readyMessage.clientAvatarChangeMessage.byteArray.Length);
+                BNL.Log("Added " + client.Id + " with AvatarID " + readyMessage.clientAvatarChangeMessage.byteArray.Length);
             }
         }
 
         public static void AddLastData(NetPeer client, VoiceReceiversMessage voiceReceiversMessage)
         {
-            if (serverSideLastState.TryGetValue(client.RemoteId, out var existingData))
+            if (serverSideLastState.TryGetValue(client.Id, out var existingData))
             {
                 existingData.voiceReceiversMessage = voiceReceiversMessage;
-                serverSideLastState[client.RemoteId] = existingData;
+                serverSideLastState[client.Id] = existingData;
             }
             else
             {
-                serverSideLastState[client.RemoteId] = new StoredData
+                serverSideLastState[client.Id] = new StoredData
                 {
                     voiceReceiversMessage = voiceReceiversMessage
                 };
@@ -78,14 +78,14 @@ namespace Basis.Network.Server.Generic
 
         public static void AddLastData(NetPeer client, ClientAvatarChangeMessage avatarChangeMessage)
         {
-            if (serverSideLastState.TryGetValue(client.RemoteId, out var existingData))
+            if (serverSideLastState.TryGetValue(client.Id, out var existingData))
             {
                 existingData.lastAvatarChangeState = avatarChangeMessage;
-                serverSideLastState[client.RemoteId] = existingData;
+                serverSideLastState[client.Id] = existingData;
             }
             else
             {
-                serverSideLastState[client.RemoteId] = new StoredData
+                serverSideLastState[client.Id] = new StoredData
                 {
                     lastAvatarChangeState = avatarChangeMessage
                 };
@@ -100,7 +100,7 @@ namespace Basis.Network.Server.Generic
         /// <returns>True if the player is found, otherwise false.</returns>
         public static bool GetLastData(NetPeer client, out StoredData storedData)
         {
-            return serverSideLastState.TryGetValue(client.RemoteId, out storedData);
+            return serverSideLastState.TryGetValue(client.Id, out storedData);
         }
 
         public struct StoredData
