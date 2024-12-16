@@ -37,7 +37,7 @@ namespace Basis.Network.Server.Generic
                 {
                     if (allClients.TryGetValue(recipientId, out NetPeer client))
                     {
-                        targetedClients.TryAdd((ushort)client.Id, client);
+                        targetedClients.TryAdd((ushort)client.RemoteId, client);
                     }
                 }
 
@@ -66,7 +66,7 @@ namespace Basis.Network.Server.Generic
                 avatarDataMessage = avatarDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
 
@@ -82,7 +82,7 @@ namespace Basis.Network.Server.Generic
                 {
                     if (allClients.TryGetValue(avatarDataMessage.recipients[index], out NetPeer client))
                     {
-                        targetedClients.TryAdd((ushort)client.Id, client);
+                        targetedClients.TryAdd((ushort)client.RemoteId, client);
                     }
                 }
 
@@ -137,7 +137,7 @@ namespace Basis.Network.Server.Generic
                 sceneDataMessage = sceneDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
 
@@ -156,7 +156,7 @@ namespace Basis.Network.Server.Generic
                 avatarDataMessage = avatarDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
 
@@ -174,7 +174,7 @@ namespace Basis.Network.Server.Generic
                 sceneDataMessage = sceneDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
             NetDataWriter Writer = new NetDataWriter();
@@ -192,7 +192,7 @@ namespace Basis.Network.Server.Generic
                 avatarDataMessage = avatarDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
 
@@ -225,7 +225,7 @@ namespace Basis.Network.Server.Generic
                 sceneDataMessage = sceneDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
 
@@ -238,7 +238,7 @@ namespace Basis.Network.Server.Generic
             {
                 if (allClients.TryGetValue(recipientId, out NetPeer client))
                 {
-                    targetedClients.TryAdd((ushort)client.Id, client);
+                    targetedClients.TryAdd((ushort)client.RemoteId, client);
                 }
             }
 
@@ -255,7 +255,7 @@ namespace Basis.Network.Server.Generic
                 avatarDataMessage = avatarDataMessage,
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)sender.Id
+                    playerID = (ushort)sender.RemoteId
                 }
             };
 
@@ -268,7 +268,7 @@ namespace Basis.Network.Server.Generic
             {
                 if (allClients.TryGetValue(recipientId, out NetPeer client))
                 {
-                    targetedClients.TryAdd((ushort)client.Id, client);
+                    targetedClients.TryAdd((ushort)client.RemoteId, client);
                 }
             }
 
