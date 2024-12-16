@@ -257,7 +257,7 @@ namespace Basis.Scripts.Networking
                         BasisNetworkedPlayer LocalNetworkedPlayer = await BasisPlayerFactoryNetworked.CreateNetworkedPlayer(
                             new InstantiationParameters(Position, Rotation, this.transform));
 
-                        LocalPlayerID = (ushort)peer.RemoteId;
+                        LocalPlayerID = (ushort)peer.Id;
                         LocalPlayerPeer = peer;
 
                         // Initialize the local networked player.
@@ -285,14 +285,14 @@ namespace Basis.Scripts.Networking
         }
         private async void PeerDisconnectedEvent(NetPeer peer, DisconnectInfo disconnectInfo)
         {
-            Debug.Log($"Client disconnected from server [{peer.RemoteId}]");
+            Debug.Log($"Client disconnected from server [{peer.Id}]");
             if (peer == LocalPlayerPeer)
             {
                 await Task.Run(() =>
                 {
                     BasisNetworkManagement.MainThreadContext.Post(async _ =>
                 {
-                    if (BasisNetworkManagement.Players.TryGetValue((ushort)LocalPlayerPeer.RemoteId, out BasisNetworkedPlayer NetworkedPlayer))
+                    if (BasisNetworkManagement.Players.TryGetValue((ushort)LocalPlayerPeer.Id, out BasisNetworkedPlayer NetworkedPlayer))
                     {
                         BasisNetworkManagement.OnLocalPlayerLeft?.Invoke(NetworkedPlayer, (Basis.Scripts.BasisSdk.Players.BasisLocalPlayer)NetworkedPlayer.Player);
                     }
@@ -303,7 +303,7 @@ namespace Basis.Scripts.Networking
                             Debug.LogError(Reason);
                         }
                     }
-                    Debug.Log($"Client disconnected from server [{peer.RemoteId}] [{disconnectInfo.Reason}]");
+                    Debug.Log($"Client disconnected from server [{peer.Id}] [{disconnectInfo.Reason}]");
                     Players.Clear();
                     OwnershipPairing.Clear();
                     SceneManager.LoadScene(0, LoadSceneMode.Single);//reset
@@ -328,7 +328,7 @@ namespace Basis.Scripts.Networking
                     {
                         Tag = Reader.GetByte(),
                         SendMode = deliveryMethod,
-                        ClientId = (ushort)peer.RemoteId
+                        ClientId = (ushort)peer.Id
                     };
                     ScheduleOnMainThread(async () =>
                     {
@@ -348,8 +348,8 @@ namespace Basis.Scripts.Networking
                     {
                         Tag = Reader.GetByte(),
                         SendMode = deliveryMethod,
-                        ClientId = (ushort)peer.RemoteId
-                     };
+                        ClientId = (ushort)peer.Id
+                    };
                     ScheduleOnMainThread(async () =>
                     {
                         await NetworkReceiveEventTag(peer, Reader, e);
@@ -360,8 +360,8 @@ namespace Basis.Scripts.Networking
                     {
                         Tag = Reader.GetByte(),
                         SendMode = deliveryMethod,
-                        ClientId = (ushort)peer.RemoteId
-                     };
+                        ClientId = (ushort)peer.Id
+                    };
                     ScheduleOnMainThread(async () =>
                     {
                         await NetworkReceiveEventTag(peer, Reader, e);
@@ -446,7 +446,7 @@ namespace Basis.Scripts.Networking
             {
                 playerIdMessage = new PlayerIdMessage
                 {
-                    playerID = (ushort)BasisNetworkManagement.LocalPlayerPeer.RemoteId,
+                    playerID = (ushort)BasisNetworkManagement.LocalPlayerPeer.Id,
                 },
                 ownershipID = UniqueNetworkId
             };

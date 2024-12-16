@@ -49,17 +49,17 @@ public static class BasisNetworkServer
                     {
                         BNL.Log("Player Is Approved Total Count is: " + ServerCount);
                         NetPeer ReadyToRoll = request.Accept();
-                        if (Peers.TryAdd((ushort)ReadyToRoll.RemoteId, ReadyToRoll))
+                        if (Peers.TryAdd((ushort)ReadyToRoll.Id, ReadyToRoll))
                         {
                             BNL.Log("Length is " + request.Data.AvailableBytes);
                             ReadyMessage ReadyMessage = new ReadyMessage();
                             ReadyMessage.Deserialize(request.Data);
-                            BNL.Log($"Peer added and connected: {ReadyToRoll.RemoteId}");
+                            BNL.Log($"Peer added and connected: {ReadyToRoll.Id}");
                             SendRemoteSpawnMessage(ReadyToRoll, ReadyMessage, BasisNetworkCommons.EventsChannel);
                         }
                         else
                         {
-                            RejectWithReason(request, $"Peer was unable to be added already exists! {ReadyToRoll.RemoteId}");
+                            RejectWithReason(request, $"Peer was unable to be added already exists! {ReadyToRoll.Id}");
                         }
                     }
                     else
@@ -80,14 +80,14 @@ public static class BasisNetworkServer
 
         listener.PeerDisconnectedEvent += (peer, info) =>
         {
-            ushort Id = (ushort)peer.RemoteId;
+            ushort Id = (ushort)peer.Id;
             if (Peers.TryRemove(Id, out peer))
             {
-                BNL.Log($"Peer removed and Disconnected: {peer.RemoteId}");
+                BNL.Log($"Peer removed and Disconnected: {peer.Id}");
             }
             else
             {
-                BNL.LogError($"Peer was unable to be removed! {peer.RemoteId}");
+                BNL.LogError($"Peer was unable to be removed! {peer.Id}");
             }
             BasisNetworkOwnership.RemovePlayerOwnership(Id);
             BasisSavedState.RemovePlayer(peer);
@@ -188,7 +188,7 @@ public static class BasisNetworkServer
                 {
                     Tag = Reader.GetByte(),
                     SendMode = deliveryMethod,
-                    ClientId = (ushort)peer.RemoteId
+                    ClientId = (ushort)peer.Id
                 };
                 NetworkReceiveEventTag(peer, Reader, e);
                 break;
@@ -197,7 +197,7 @@ public static class BasisNetworkServer
                 {
                     Tag = Reader.GetByte(),
                     SendMode = deliveryMethod,
-                    ClientId = (ushort)peer.RemoteId
+                    ClientId = (ushort)peer.Id
                 };
                 NetworkReceiveEventTag(peer, Reader, e);
                 break;
@@ -206,7 +206,7 @@ public static class BasisNetworkServer
                 {
                     Tag = Reader.GetByte(),
                     SendMode = deliveryMethod,
-                    ClientId = (ushort)peer.RemoteId
+                    ClientId = (ushort)peer.Id
                 };
                 NetworkReceiveEventTag(peer, Reader, e);
                 break;
@@ -268,7 +268,7 @@ public static class BasisNetworkServer
             clientAvatarChangeMessage = ClientAvatarChangeMessage,
             uShortPlayerId = new PlayerIdMessage
             {
-                playerID = (ushort)Peer.RemoteId
+                playerID = (ushort)Peer.Id
             }
         };
         BasisSavedState.AddLastData(Peer, ClientAvatarChangeMessage);
@@ -323,7 +323,7 @@ public static class BasisNetworkServer
             }
 
             audioSegment.playerIdMessage = new PlayerIdMessage();
-            audioSegment.playerIdMessage.playerID = (ushort)sender.RemoteId;
+            audioSegment.playerIdMessage.playerID = (ushort)sender.Id;
             NetDataWriter NetDataWriter = new NetDataWriter();
             audioSegment.Serialize(NetDataWriter);
           //  BNL.Log("Sending Voice Data To Clients");
@@ -331,12 +331,12 @@ public static class BasisNetworkServer
         }
         else
         {
-            BNL.Log("Error unable to find " + sender.RemoteId + " in the data store!");
+            BNL.Log("Error unable to find " + sender.Id + " in the data store!");
         }
     }
     public static void BroadcastMessageToClients(NetDataWriter Reader, byte channel, NetPeer sender, ConcurrentDictionary<ushort, NetPeer> authenticatedClients, DeliveryMethod deliveryMethod = DeliveryMethod.Sequenced)
     {
-        IEnumerable<KeyValuePair<ushort, NetPeer>> clientsExceptSender = authenticatedClients.Where(client => client.Value.RemoteId != sender.RemoteId);
+        IEnumerable<KeyValuePair<ushort, NetPeer>> clientsExceptSender = authenticatedClients.Where(client => client.Value.Id != sender.Id);
 
         foreach (KeyValuePair<ushort, NetPeer> client in clientsExceptSender)
         {
@@ -365,11 +365,11 @@ public static class BasisNetworkServer
         BasisSavedState.AddLastData(Peer, LocalAvatarSyncMessage);
         foreach (NetPeer client in Peers.Values)
         {
-            if (client.RemoteId == Peer.RemoteId)
+            if (client.Id == Peer.Id)
             {
                 continue;
             }
-            ServerSideSyncPlayerMessage ssspm = CreateServerSideSyncPlayerMessage(LocalAvatarSyncMessage, (ushort)Peer.RemoteId);
+            ServerSideSyncPlayerMessage ssspm = CreateServerSideSyncPlayerMessage(LocalAvatarSyncMessage, (ushort)Peer.Id);
             BasisServerReductionSystem.AddOrUpdatePlayer(client, ssspm, Peer);
         }
     }
@@ -392,7 +392,7 @@ public static class BasisNetworkServer
         ServerReadyMessage serverReadyMessage = new ServerReadyMessage
         {
             localReadyMessage = readyMessage,
-            playerIdMessage = new PlayerIdMessage() { playerID = (ushort)authClient.RemoteId },
+            playerIdMessage = new PlayerIdMessage() { playerID = (ushort)authClient.Id },
         };
         BasisSavedState.AddLastData(authClient, readyMessage);
         return serverReadyMessage;
@@ -407,7 +407,7 @@ public static class BasisNetworkServer
         string ClientIds = string.Empty;
         foreach (NetPeer client in clientsToNotify)
         {
-            ClientIds += $" | {client.RemoteId}";
+            ClientIds += $" | {client.Id}";
             client.Send(Writer, channel, DeliveryMethod.ReliableOrdered);
         }
         BNL.Log($"Sent Remote Spawn request to {ClientIds}");
@@ -436,12 +436,12 @@ public static class BasisNetworkServer
                     clientAvatarChangeMessage = sspm.lastAvatarChangeState,
                     playerMetaDataMessage = sspm.playerMetaDataMessage,
                 };
-                serverReadyMessage.playerIdMessage = new PlayerIdMessage() { playerID = (ushort)client.RemoteId };
+                serverReadyMessage.playerIdMessage = new PlayerIdMessage() { playerID = (ushort)client.Id };
             }
             else
             {
                 BNL.Log("Unable to get last Data Creating Fake");
-                serverReadyMessage.playerIdMessage = new PlayerIdMessage { playerID = (ushort)client.RemoteId };
+                serverReadyMessage.playerIdMessage = new PlayerIdMessage { playerID = (ushort)client.Id };
                 serverReadyMessage.localReadyMessage = new ReadyMessage
                 {
                     localAvatarSyncMessage = new LocalAvatarSyncMessage() { array = new byte[390] },
@@ -460,7 +460,7 @@ public static class BasisNetworkServer
         NetDataWriter Writer = new NetDataWriter();
         Writer.Put(BasisNetworkTag.CreateRemotePlayers);
         remoteMessages.Serialize(Writer);
-        BNL.Log($"Sending list of clients to {authClient.RemoteId}");
+        BNL.Log($"Sending list of clients to {authClient.Id}");
         authClient.Send(Writer, channel, DeliveryMethod.ReliableOrdered);
     }
 }
