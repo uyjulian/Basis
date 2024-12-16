@@ -269,7 +269,7 @@ public static class BasisMenuItemsEditor
         {
             playerIdMessage = new PlayerIdMessage
             {
-                NetworkID = (ushort)(BasisNetworkManagement.Players.Count + 1)
+                playerID = (ushort)(BasisNetworkManagement.Players.Count + 1)
             },
             localReadyMessage = new ReadyMessage()
         };
