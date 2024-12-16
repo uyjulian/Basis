@@ -16,7 +16,14 @@ namespace Basis.Scripts.Networking.NetworkedPlayer
         public BasisNetworkSendBase NetworkSend;
         public BasisBoneControl MouthBone;
         public BasisPlayer Player;
-        public ushort NetId => NetworkSend.NetworkNetID.playerID;
+        public ushort NetId
+        {
+            get
+            {
+                return NetworkSend.NetworkNetID.playerID;
+            }
+        }
+
         public void OnDestroy()
         {
             if (Player != null)
