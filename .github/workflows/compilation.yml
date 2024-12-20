@@ -1,4 +1,4 @@
-name: Automatic build of client
+name: Automatic build
 
 on: [push, pull_request]
 
@@ -16,7 +16,7 @@ jobs:
         if: "${{ env.TMP_SECRET1 != '' && env.TMP_SECRET2 != '' && env.TMP_SECRET3 != '' }}"
         run: echo "defined=true" >> $GITHUB_OUTPUT
 
-  build-win32:
+  build-client-win32:
     name: Build client on Windows
     runs-on: windows-2022
     strategy:
@@ -52,4 +52,22 @@ jobs:
         with:
           name: Basis-Client
           path: build
+
+  build-server:
+    name: Build server on Ubuntu
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: "dotnet build 'Basis Server'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Build-Server
+          path: "Basis Server/BasisServerConsole/bin"
 
