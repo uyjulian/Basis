@@ -21,6 +21,9 @@ jobs:
     runs-on: windows-2022
     strategy:
       fail-fast: false
+      matrix:
+        projectPath:
+          - Basis
     needs: [check-secret]
     if: needs.check-secret.outputs.secret-is-set == 'true'
     steps:
@@ -29,12 +32,12 @@ jobs:
           fetch-depth: 0
       - uses: actions/cache@v3
         with:
-          path: Library
+          path: ${{ matrix.projectPath }}/Library
           key:
-            Library-Project-StandaloneWindows64-${{ hashFiles(Basis) }}
+            Library-${{ matrix.projectPath }}-StandaloneWindows64-${{ hashFiles(matrix.projectPath) }}
           restore-keys: |
-            Library-Project-StandaloneWindows64-
-            Library-Project-
+            Library-${{ matrix.projectPath }}-StandaloneWindows64-
+            Library-${{ matrix.projectPath }}-
             Library-
       - uses: game-ci/unity-builder@v4
         env:
@@ -42,7 +45,7 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          projectPath: Basis
+          projectPath: ${{ matrix.projectPath }}
           unityVersion: 6000.0.31f1
           targetPlatform: StandaloneWindows64
       - uses: actions/upload-artifact@v3
