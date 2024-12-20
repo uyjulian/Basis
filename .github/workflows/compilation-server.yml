@@ -1,0 +1,23 @@
+name: Automatic build of server
+
+on: [push, pull_request]
+
+jobs:
+  build-dotnet:
+    name: Build server on Ubuntu
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - run: dotnet build 'Basis Server'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Build-Server
+          path: 'Basis Server'/BasisServerConsole/bin
+

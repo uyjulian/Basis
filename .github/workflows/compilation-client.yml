@@ -1,4 +1,4 @@
-name: Automatic build
+name: Automatic build of client
 
 on: [push, pull_request]
 
@@ -17,7 +17,7 @@ jobs:
         run: echo "defined=true" >> $GITHUB_OUTPUT
 
   build-win32:
-    name: Build for Windows
+    name: Build client on Windows
     runs-on: windows-2022
     strategy:
       fail-fast: false
@@ -48,8 +48,8 @@ jobs:
           projectPath: ${{ matrix.projectPath }}
           unityVersion: 6000.0.31f1
           targetPlatform: StandaloneWindows64
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: Build
+          name: Basis-Client
           path: build
 
