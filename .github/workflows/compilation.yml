@@ -67,7 +67,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: "dotnet publish 'Basis Server' -f net9.0 --self-contained --os Linux -o build -c Release"
+      - run: "dotnet publish 'Basis Server' -f net9.0 --self-contained --os linux -o build -c Release"
       - uses: actions/upload-artifact@v4
         with:
           name: Build-Server
