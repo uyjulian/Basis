@@ -31,7 +31,7 @@ jobs:
         with:
           path: Library
           key:
-            Library-Project-StandaloneWindows64-${{ hashFiles(${{ GITHUB_WORKSPACE }}) }}
+            Library-Project-StandaloneWindows64-${{ hashFiles(github.workspace) }}
           restore-keys: |
             Library-Project-StandaloneWindows64-
             Library-Project-
