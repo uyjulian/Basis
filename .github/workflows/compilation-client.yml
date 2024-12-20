@@ -21,6 +21,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       fail-fast: false
+    needs: [check-secret]
     if: needs.check-secret.outputs.secret-is-set == 'true'
     steps:
       - uses: actions/checkout@v4
