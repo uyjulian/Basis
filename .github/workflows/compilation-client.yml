@@ -1,0 +1,52 @@
+name: Automatic build
+
+on: [push, pull_request]
+
+jobs:
+  check-secret:
+    runs-on: ubuntu-latest
+    outputs:
+      secret-is-set: ${{ steps.secret-is-set.outputs.defined }}
+    steps:
+      - id: secret-is-set
+        env:
+          TMP_SECRET1: ${{ secrets.UNITY_LICENSE }}
+          TMP_SECRET2: ${{ secrets.UNITY_EMAIL }}
+          TMP_SECRET3: ${{ secrets.UNITY_PASSWORD }}
+        if: "${{ env.TMP_SECRET1 != '' && env.TMP_SECRET2 != '' && env.TMP_SECRET3 != '' }}"
+        run: echo "::set-output name=defined::true"
+
+  build-win32:
+    name: Build for Windows
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+    if: needs.check-secret.outputs.secret-is-set == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      - uses: actions/cache@v3
+        with:
+          path: Library
+          key:
+            Library-Project-StandaloneWindows64-${{ hashFiles(.) }}
+          restore-keys: |
+            Library-Project-StandaloneWindows64-
+            Library-Project-
+            Library-
+      - uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          projectPath: .
+          unityVersion: 6000.0.31f1
+          targetPlatform: StandaloneWindows64
+      - uses: actions/upload-artifact@v3
+        with:
+          name: Build
+          path: build
+
