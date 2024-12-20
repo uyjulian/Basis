@@ -15,9 +15,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: dotnet build 'Basis Server'
+      - run: "dotnet build 'Basis Server'"
       - uses: actions/upload-artifact@v4
         with:
           name: Build-Server
-          path: 'Basis Server'/BasisServerConsole/bin
+          path: "Basis Server/BasisServerConsole/bin"
 
