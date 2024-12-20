@@ -51,7 +51,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Basis-Client
-          path: build
+          path: |
+            build
+            "!**/StandaloneWindows64_BackUpThisFolder_ButDontShipItWithYourGame"
 
   build-server:
     name: Build server on Ubuntu
@@ -65,9 +67,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: "dotnet build 'Basis Server'"
+      - run: "dotnet publish 'Basis Server' -o build -c Release"
       - uses: actions/upload-artifact@v4
         with:
           name: Build-Server
-          path: "Basis Server/BasisServerConsole/bin"
+          path: "build"
 
