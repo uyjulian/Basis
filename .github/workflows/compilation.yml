@@ -89,8 +89,8 @@ jobs:
         projectPath:
           - Basis Server
         targetPlatform:
-          - linux-x64
-          - win-x64
+          - linux
+          - win
     steps:
       - name: "Checkout repository"
         timeout-minutes: 2
