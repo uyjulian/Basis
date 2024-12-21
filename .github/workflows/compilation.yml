@@ -3,12 +3,18 @@ name: Automatic build
 on: [push, pull_request]
 
 jobs:
+  # To setup secrets for client build, see https://game.ci/docs/github/activation
+  # NOTE: For personal license, a dedicated account is recommended
+  # NOTE: To generate the license file, open Unity 2018 on a project at least once
   check-secret:
+    name: Check if secrets available
+    timeout-minutes: 5
     runs-on: ubuntu-latest
     outputs:
       secret-is-set: ${{ steps.secret-is-set.outputs.defined }}
     steps:
-      - id: secret-is-set
+      - name: Check if secret is set, then set variable
+        id: secret-is-set
         env:
           TMP_SECRET1: ${{ secrets.UNITY_LICENSE }}
           TMP_SECRET2: ${{ secrets.UNITY_EMAIL }}
@@ -105,27 +111,33 @@ jobs:
     timeout-minutes: 20
     if: "github.ref_type == 'tag' && github.ref != 'refs/tags/latest'"
     steps:
+      - name: "Checkout repository"
+        timeout-minutes: 10
+        uses: actions/checkout@v4
       - name: "Download client artifact"
         timeout-minutes: 10
         uses: "actions/download-artifact@v4"
         with:
           name: Basis-Client
-          path: $GITHUB_WORKSPACE/Basis-Client
+          path: $GITHUB_WORKSPACE/Basis-Client-Build
       - name: "Download server artifact"
         timeout-minutes: 5
         uses: "actions/download-artifact@v4"
         with:
           name: Basis-Server
-          path: $GITHUB_WORKSPACE/Basis-Server
+          path: $GITHUB_WORKSPACE/Basis-Server-Build
       - name: "Install additional dependencies"
         timeout-minutes: 10
-        run: "apt-get -y update && apt-get -y install p7zip-full"
+        run: "sudo apt-get -y update && sudo apt-get -y install p7zip-full"
+      - name: Set up release prefix
+        run: |
+          echo "RELEASE_PREFIX=${{ github.event.repository.name }}-$(git describe --tags)" >> $GITHUB_ENV
       - name: "Archive client artifact"
         timeout-minutes: 10
-        run: "7z a -tzip ${{ github.event.repository.name }}-Client.zip Basis-Client"
+        run: "7z a -tzip ${{ env.RELEASE_PREFIX }}-Client.zip Basis-Client-Build"
       - name: "Archive server artifact"
         timeout-minutes: 10
-        run: "7z a -tzip ${{ github.event.repository.name }}-Server.zip Basis-Server"
+        run: "7z a -tzip ${{ env.RELEASE_PREFIX }}-Server.zip Basis-Server-Build"
       - name: "Create release"
         if: "github.ref_type == 'tag' && github.ref != 'refs/tags/latest'"
         timeout-minutes: 5
@@ -134,6 +146,6 @@ jobs:
           repo_token: "${{ secrets.GITHUB_TOKEN }}"
           prerelease: "${{ contains(github.ref, '-rc') }}"
           files: |
-            ${{ github.event.repository.name }}-Client.zip
-            ${{ github.event.repository.name }}-Server.zip
+            ${{ env.RELEASE_PREFIX }}-Client.zip
+            ${{ env.RELEASE_PREFIX }}-Server.zip
 
